@@ -1,0 +1,16 @@
+{
+    "id": "cef7aa7a-c96a-4bcf-8752-2e50bd34e22f",
+    "version": "0.0.1",
+    "requiredApiVersion": "^1.44.0",
+    "iconFile": "icon.png",
+    "author": {
+        "name": "Devansh Kansagra",
+        "homepage": "https://github.com/devanshkansagra",
+        "support": "https://github.com/devanshkansagra"
+    },
+    "name": "jira",
+    "nameSlug": "jira",
+    "classFile": "JiraApp.ts",
+    "description": "This is Jira Integration for Rocket.Chat",
+    "implements": []
+}
