@@ -1,8 +1,17 @@
-import { IRead, IModify, IHttp, IPersistence } from "@rocket.chat/apps-engine/definition/accessors";
+import {
+    IRead,
+    IModify,
+    IHttp,
+    IPersistence,
+} from "@rocket.chat/apps-engine/definition/accessors";
 import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
 import { IUser } from "@rocket.chat/apps-engine/definition/users";
 import { JiraApp } from "../../JiraApp";
-import { ICommandUtility, ICommandUtilityParams } from "../interfaces/ICommandUtility";
+import {
+    ICommandUtility,
+    ICommandUtilityParams,
+} from "../interfaces/ICommandUtility";
+import { authorize } from "../oauth/auth";
 
 export class CommandUtility implements ICommandUtility {
     app: JiraApp;
@@ -30,9 +39,19 @@ export class CommandUtility implements ICommandUtility {
     }
 
     public async resolveCommand(): Promise<void> {
-        const command = this.params;
+        const command = this.params[0];
 
-        // Todo: Create Login Command
+        switch (command) {
+            case "login": {
+                await authorize(
+                    this.app,
+                    this.read,
+                    this.modify,
+                    this.sender,
+                    this.room,
+                    this.persis,
+                );
+            }
+        }
     }
-    
 }
