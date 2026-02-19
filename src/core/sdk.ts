@@ -36,7 +36,6 @@ export class SDK {
             "http://localhost:3000/api/apps/public/cef7aa7a-c96a-4bcf-8752-2e50bd34e22f/callback";
 
         try {
-            // 1️⃣ Exchange authorization code for access token
             const tokenResponse = await http.post(
                 "https://auth.atlassian.com/oauth/token",
                 {
@@ -54,7 +53,6 @@ export class SDK {
             const { access_token, refresh_token, expires_in, scope } =
                 tokenResponse.data;
 
-            // // 2️⃣ Get Atlassian user info
             const userResponse = await http.get(
                 "https://api.atlassian.com/me",
                 {
@@ -65,7 +63,6 @@ export class SDK {
                 },
             );
 
-            // 3️⃣ Get accessible Jira sites (cloudId)
             const resourcesResponse = await http.get(
                 "https://api.atlassian.com/oauth/token/accessible-resources",
                 {
@@ -77,13 +74,10 @@ export class SDK {
             );
 
             const resource = resourcesResponse.data?.[0];
-            console.log(resource);
-
             // if (!resource) {
             //     throw new Error("No Jira cloud resource found for this user");
             // }
 
-            // // 4️⃣ Structure final auth object
             const authData = {
                 token: access_token,
                 refreshToken: refresh_token,
@@ -98,7 +92,6 @@ export class SDK {
                 siteName: resource.name,
             };
 
-            // 5️⃣ Persist everything
             await this.authPersistence.setAccessTokenForUser(
                 authData,
                 user,
@@ -173,11 +166,22 @@ export class SDK {
                     issuetype: {
                         name: issueType,
                     },
-                    assignee: {
-                        name: token.account_id,
-                    }
                 },
             };
+
+            // Add assignee if provided
+            if (assignee) {
+                issueData.fields.assignee = {
+                    accountId: assignee,
+                };
+            }
+
+            // Add priority if provided
+            if (priority) {
+                issueData.fields.priority = {
+                    name: priority,
+                };
+            }
             
 
             const response = await http.post(
@@ -192,6 +196,7 @@ export class SDK {
                 },
             );
 
+
             if (response?.data?.key) {
                 return { success: true, issueKey: response.data.key };
             }
@@ -205,6 +210,51 @@ export class SDK {
                     error?.data?.errorMessages?.[0] ||
                     error?.message ||
                     "Unknown error",
+            };
+        }
+    }
+
+    /**
+     * Search for Jira users by query (username, email, or display name)
+     * and return the accountId
+     */
+    public async searchJiraUser({
+        http,
+        token,
+        query,
+    }: {
+        http: IHttp;
+        token: any;
+        query: string;
+    }): Promise<{ success: boolean; accountId?: string; error?: string }> {
+        try {
+            const cloudId = token?.cloudId;
+            if (!cloudId) {
+                return { success: false, error: "No cloudId found" };
+            }
+
+            // Search for user in Jira by query
+            const response = await http.get(
+                `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/user/search?query=${encodeURIComponent(query)}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token?.token}`,
+                        Accept: "application/json",
+                    },
+                },
+            );
+
+            if (response?.data?.length > 0) {
+                // Return the first match's accountId
+                return { success: true, accountId: response.data[0].accountId };
+            }
+
+            return { success: false, error: "User not found in Jira" };
+        } catch (error: any) {
+            console.error("Error searching Jira user:", error);
+            return {
+                success: false,
+                error: error?.message || "Failed to search user",
             };
         }
     }
