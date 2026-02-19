@@ -31,41 +31,70 @@ export class ExecuteViewSubmitHandler {
     public async execute(): Promise<IUIKitResponse> {
         const { view, user, room } = this.context.getInteractionData();
 
-        // Extract form variables from the modal
-        const project =
-            view.state?.[ElementEnum.JIRA_PROJECT_BLOCK]?.[
-                ElementEnum.JIRA_PROJECT_ACTION
-            ];
-        const issueType =
-            view.state?.[ElementEnum.JIRA_ISSUE_TYPE_BLOCK]?.[
-                ElementEnum.JIRA_ISSUE_TYPE_ACTION
-            ];
-        const summary =
-            view.state?.[ElementEnum.JIRA_SUMMARY_BLOCK]?.[
-                ElementEnum.JIRA_SUMMARY_ACTION
-            ];
-        const description =
-            view.state?.[ElementEnum.JIRA_DESCRIPTION_BLOCK]?.[
-                ElementEnum.JIRA_DESCRIPTION_ACTION
-            ];
-        const priority =
-            view.state?.[ElementEnum.JIRA_PRIORITY_BLOCK]?.[
-                ElementEnum.JIRA_PRIORITY_ACTION
-            ];
-        const assignee =
-            view.state?.[ElementEnum.JIRA_ASSIGNEE_BLOCK]?.[
-                ElementEnum.JIRA_ASSIGNEE_ACTION
-            ];
-
         const authPersistence = new AuthPersistence(this.app);
         const token = await authPersistence.getAccessTokenForUser(
             user,
             this.read,
         );
         const sdk = this.app.sdk;
+        // Extract form variables from the modal
 
         switch (view.id) {
             case ElementEnum.JIRA_CREATE_MODAL: {
+                const project =
+                    view.state?.[ElementEnum.JIRA_PROJECT_BLOCK]?.[
+                        ElementEnum.JIRA_PROJECT_ACTION
+                    ];
+                const issueType =
+                    view.state?.[ElementEnum.JIRA_ISSUE_TYPE_BLOCK]?.[
+                        ElementEnum.JIRA_ISSUE_TYPE_ACTION
+                    ];
+                const summary =
+                    view.state?.[ElementEnum.JIRA_SUMMARY_BLOCK]?.[
+                        ElementEnum.JIRA_SUMMARY_ACTION
+                    ];
+                const description =
+                    view.state?.[ElementEnum.JIRA_DESCRIPTION_BLOCK]?.[
+                        ElementEnum.JIRA_DESCRIPTION_ACTION
+                    ];
+                const priority =
+                    view.state?.[ElementEnum.JIRA_PRIORITY_BLOCK]?.[
+                        ElementEnum.JIRA_PRIORITY_ACTION
+                    ];
+                const assignee =
+                    view.state?.[ElementEnum.JIRA_ASSIGNEE_BLOCK]?.[
+                        ElementEnum.JIRA_ASSIGNEE_ACTION
+                    ];
+
+                // If assignee is provided, search for their Jira accountId
+                let jiraAccountId: string | undefined;
+                if (assignee) {
+                    const assignedUser = (await this.read.getUserReader().getByUsername(assignee)).emails[0];
+                    const userSearchResult = await sdk.searchJiraUser({
+                        http: this.http,
+                        token: token.token,
+                        query: assignedUser.address,
+                    });
+                    if (
+                        userSearchResult.success &&
+                        userSearchResult.accountId
+                    ) {
+                        jiraAccountId = userSearchResult.accountId;
+                    } else {
+                        // User not found in Jira, send notification and return
+                        const room = (await this.read
+                            .getRoomReader()
+                            .getById("GENERAL")) as IRoom;
+                        await sendNotification(
+                            this.read,
+                            this.modify,
+                            user,
+                            room as IRoom,
+                            `❌ Could not find user "${assignee}" in Jira. Please check the username or email.`,
+                        );
+                        return { success: false };
+                    }
+                }
                 const res = await sdk.createJiraIssue({
                     http: this.http,
                     token: token.token,
@@ -74,7 +103,7 @@ export class ExecuteViewSubmitHandler {
                     summary,
                     description,
                     priority,
-                    assignee,
+                    assignee: jiraAccountId,
                 });
 
                 // Get the room from interaction data

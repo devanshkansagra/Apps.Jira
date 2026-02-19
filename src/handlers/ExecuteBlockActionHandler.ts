@@ -43,7 +43,6 @@ export class ExecuteBlockActionHandler {
             container,
         } = this.context.getInteractionData();
 
-        // const authPersistence = new AuthPersistence(this.app);
         try {
             switch (actionId) {
 
