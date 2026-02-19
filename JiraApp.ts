@@ -14,9 +14,10 @@ import { JiraCommand } from "./src/commands/JiraCommand";
 import { settings } from "./src/settings/settings";
 import { WebhookEndPoint } from "./src/api/webhook";
 import { ApiVisibility, ApiSecurity } from "@rocket.chat/apps-engine/definition/api";
-import { UIKitBlockInteractionContext, IUIKitResponse } from "@rocket.chat/apps-engine/definition/uikit";
+import { UIKitBlockInteractionContext, IUIKitResponse, UIKitViewSubmitInteractionContext } from "@rocket.chat/apps-engine/definition/uikit";
 import { ExecuteBlockActionHandler } from "./src/handlers/ExecuteBlockActionHandler";
 import { SDK } from "./src/core/sdk";
+import { ExecuteViewSubmitHandler } from "./src/handlers/ExecuteViewSubmitHandler";
 
 export class JiraApp extends App {
     public sdk: SDK;
@@ -65,4 +66,24 @@ export class JiraApp extends App {
 
         return await handler.execute();
     }
+
+    public async executeViewSubmitHandler(
+        context: UIKitViewSubmitInteractionContext,
+        read: IRead,
+        http: IHttp,
+        persistence: IPersistence,
+        modify: IModify,
+    ): Promise<void | IUIKitResponse> {
+        const handler = new ExecuteViewSubmitHandler(
+            this,
+            context,
+            read,
+            http,
+            persistence,
+            modify,
+        );
+
+        return await handler.execute();
+    }
+
 }
