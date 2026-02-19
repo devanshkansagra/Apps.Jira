@@ -1,14 +1,34 @@
-# jira
-This is Jira Integration for Rocket.Chat
+# Jira Integration for Rocket.Chat
 
-## Getting Started
-Now that you have generated a blank default Rocket.Chat App, what are you supposed to do next?
-Start developing! Open up your favorite editor, our recommended one is Visual Studio code,
-and start working on your App. Once you have something ready to test, you can either
-package it up and manually deploy it to your test instance or you can use the CLI to do so.
-Here are some commands to get started:
-- `rc-apps package`: this command will generate a packaged app file (zip) which can be installed **if** it compiles with TypeScript
-- `rc-apps deploy`: this will do what `package` does but will then ask you for your server url, username, and password to deploy it for you
+## 📜 Getting Started
+
+### Prerequisites
+
+-   You need a Rocket.Chat Server Setup
+-   Rocket.Chat.Apps CLI,
+
+*   In case you don't have run:
+    ```sh
+    npm install -g @rocket.chat/apps-cli
+    ```
+
+### ⚙️ Installation
+
+-   Every RocketChat Apps runs on RocketChat Server, thus everytime you wanna test you need to deploy the app with this note. lets start setting up:
+
+1. Clone the repo
+    ```sh
+    git clone https://github.com/<yourusername>/Apps.Jira
+    ```
+2. Install NPM packages
+    ```sh
+    npm install
+    ```
+3. Deploy app using:
+
+    ```sh
+    rc-apps deploy --url <url> --username <username> --password <password>
+    ```
 
 ## Documentation
 Here are some links to examples and documentation:
