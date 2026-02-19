@@ -68,11 +68,6 @@ export class WebhookEndPoint extends ApiEndpoint {
                         text-align: center;
                         width: 400px;
                     }
-                    .icon {
-                        font-size: 60px;
-                        color: #36B37E;
-                        margin-bottom: 20px;
-                    }
                     h1 {
                         margin: 0;
                         color: #172B4D;
@@ -82,11 +77,19 @@ export class WebhookEndPoint extends ApiEndpoint {
                         color: #5E6C84;
                         font-size: 15px;
                     }
+                    .icon {
+                        margin-bottom: 20px;
+                    }
+                    .icon img {
+                        width: 64px;
+                        height: 64px;
+                        object-fit: contain;
+                    }
                 </style>
             </head>
             <body>
                 <div class="card">
-                    <div class="icon"></div>
+                    <div class="icon"><img src="https://res.cloudinary.com/dvj3i9gog/image/upload/v1771524965/jira_mit3tt.png"></div>
                     <h1>Authorized Successfully</h1>
                     <p>You can now close this window and return to Rocket.Chat.</p>
                 </div>
