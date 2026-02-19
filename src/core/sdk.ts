@@ -10,6 +10,7 @@ import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
 import { getCredentials } from "../helpers/getCredentials";
 import { sendNotification } from "../helpers/message";
 import { AuthPersistence } from "../persistance/authPersistence";
+import { read } from "fs";
 
 export class SDK {
     private readonly http: IHttp;
@@ -63,7 +64,6 @@ export class SDK {
                     },
                 },
             );
-
 
             // 3️⃣ Get accessible Jira sites (cloudId)
             const resourcesResponse = await http.get(
@@ -122,6 +122,90 @@ export class SDK {
         } catch (error) {
             console.error("OAuth flow failed:", error);
             throw error;
+        }
+    }
+    public async createJiraIssue({
+        http,
+        token,
+        projectKey,
+        issueType,
+        summary,
+        description,
+        priority,
+        assignee,
+    }: {
+        http: IHttp;
+        token: any;
+        projectKey: string;
+        issueType: string;
+        summary: string;
+        description: string;
+        priority: string;
+        assignee?: string;
+    }): Promise<{ success: boolean; issueKey?: string; error?: string }> {
+        try {
+            const cloudId = token?.cloudId;
+            if (!cloudId) {
+                return { success: false, error: "No cloudId found" };
+            }
+
+            const issueData: any = {
+                fields: {
+                    project: {
+                        key: projectKey,
+                    },
+                    summary: summary,
+                    description: {
+                        type: "doc",
+                        version: 1,
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [
+                                    {
+                                        type: "text",
+                                        text: description,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    issuetype: {
+                        name: issueType,
+                    },
+                    assignee: {
+                        name: token.account_id,
+                    }
+                },
+            };
+            
+
+            const response = await http.post(
+                `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token?.token}`,
+                        Accept: "application/json",
+                        "Content-Type": "application/json",
+                    },
+                    content: JSON.stringify(issueData),
+                },
+            );
+
+            if (response?.data?.key) {
+                return { success: true, issueKey: response.data.key };
+            }
+
+            return { success: false, error: "Failed to create issue" };
+        } catch (error: any) {
+            console.error("Error creating Jira issue:", error);
+            return {
+                success: false,
+                error:
+                    error?.data?.errorMessages?.[0] ||
+                    error?.message ||
+                    "Unknown error",
+            };
         }
     }
 }

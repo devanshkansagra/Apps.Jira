@@ -12,6 +12,8 @@ import {
     ICommandUtilityParams,
 } from "../interfaces/ICommandUtility";
 import { authorize } from "../oauth/auth";
+import { Handler } from "../handlers/Handler";
+import { sendNotification } from "../helpers/message";
 
 export class CommandUtility implements ICommandUtility {
     app: JiraApp;
@@ -41,16 +43,24 @@ export class CommandUtility implements ICommandUtility {
     public async resolveCommand(): Promise<void> {
         const command = this.params[0];
 
+        const handler = new Handler(
+            this.app,
+            this.read,
+            this.http,
+            this.persis,
+            this.modify,
+            this.sender,
+            this.room,
+            this.triggerId || "",
+        );
+
         switch (command) {
             case "login": {
-                await authorize(
-                    this.app,
-                    this.read,
-                    this.modify,
-                    this.sender,
-                    this.room,
-                    this.persis,
-                );
+                await handler.login();
+                break;
+            }
+            case "create": {
+                await handler.create();
             }
         }
     }
