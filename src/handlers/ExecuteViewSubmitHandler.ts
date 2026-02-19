@@ -3,16 +3,20 @@ import {
     IHttp,
     IPersistence,
     IModify,
+    IUIKitSurfaceViewParam,
 } from "@rocket.chat/apps-engine/definition/accessors";
 import {
+    IUIKitModalResponse,
     IUIKitResponse,
     UIKitViewSubmitInteractionContext,
+    UIKitInteractionType,
 } from "@rocket.chat/apps-engine/definition/uikit";
 import { JiraApp } from "../../JiraApp";
 import { ElementEnum } from "../enums/ElementEnum";
 import { AuthPersistence } from "../persistance/authPersistence";
 import { sendMessage, sendNotification } from "../helpers/message";
 import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
+import { SearchResultsModal } from "../modals/searchResults";
 
 export class ExecuteViewSubmitHandler {
     private context: UIKitViewSubmitInteractionContext;
@@ -28,7 +32,7 @@ export class ExecuteViewSubmitHandler {
         this.context = context;
     }
 
-    public async execute(): Promise<IUIKitResponse> {
+    public async execute(): Promise<IUIKitResponse | IUIKitModalResponse> {
         const { view, user, room } = this.context.getInteractionData();
 
         const authPersistence = new AuthPersistence(this.app);
@@ -69,7 +73,9 @@ export class ExecuteViewSubmitHandler {
                 // If assignee is provided, search for their Jira accountId
                 let jiraAccountId: string | undefined;
                 if (assignee) {
-                    const assignedUser = (await this.read.getUserReader().getByUsername(assignee)).emails[0];
+                    const assignedUser = (
+                        await this.read.getUserReader().getByUsername(assignee)
+                    ).emails[0];
                     const userSearchResult = await sdk.searchJiraUser({
                         http: this.http,
                         token: token.token,
@@ -129,6 +135,65 @@ export class ExecuteViewSubmitHandler {
                         `❌ Failed to create Jira issue: ${res.error}`,
                     );
                 }
+                break;
+            }
+            case ElementEnum.JIRA_SEARCH_MODAL: {
+                const projectKey =
+                    view.state?.[ElementEnum.JIRA_SEARCH_PROJECT_BLOCK]?.[
+                        ElementEnum.JIRA_SEARCH_PROJECT_ACTION
+                    ];
+                const status =
+                    view.state?.[ElementEnum.JIRA_SEARCH_STATUS_BLOCK]?.[
+                        ElementEnum.JIRA_SEARCH_STATUS_ACTION
+                    ];
+                const issueType =
+                    view.state?.[ElementEnum.JIRA_SEARCH_ISSUE_TYPE_BLOCK]?.[
+                        ElementEnum.JIRA_SEARCH_ISSUE_TYPE_ACTION
+                    ];
+                const priority =
+                    view.state?.[ElementEnum.JIRA_SEARCH_PRIORITY_BLOCK]?.[
+                        ElementEnum.JIRA_SEARCH_PRIORITY_ACTION
+                    ];
+                const assignee =
+                    view.state?.[ElementEnum.JIRA_SEARCH_ASSIGNEE_BLOCK]?.[
+                        ElementEnum.JIRA_SEARCH_ASSIGNEE_ACTION
+                    ];
+
+                // Open the search results modal
+                const searchResultsModal = await SearchResultsModal({
+                    app: this.app,
+                    read: this.read,
+                    modify: this.modify,
+                    http: this.http,
+                    sender: user,
+                    room: room,
+                    persis: this.persistence,
+                    triggerId: this.context.getInteractionData().triggerId,
+                    id: this.app.getID(),
+                    projectKey,
+                    status: status || undefined,
+                    issueType: issueType || undefined,
+                    priority: priority || undefined,
+                    assignee: assignee || undefined,
+                });
+
+                const triggerId = this.context.getInteractionData().triggerId;
+                await this.modify.getUiController().openSurfaceView(
+                    searchResultsModal as IUIKitSurfaceViewParam,
+                    {
+                        triggerId
+                    },
+                    user,
+                );
+
+
+                return {
+                    success: true,
+                    type: UIKitInteractionType.MODAL_UPDATE,
+                    triggerId: triggerId || "",
+                    appId: this.app.getID(),
+                    view: searchResultsModal as IUIKitSurfaceViewParam,
+                } as IUIKitModalResponse;
             }
         }
         return { success: true };
