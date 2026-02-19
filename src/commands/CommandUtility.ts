@@ -71,6 +71,10 @@ export class CommandUtility implements ICommandUtility {
                 await handler.search();
                 break;
             }
+            case "assign": {
+                await handler.assign();
+                break;
+            }
         }
     }
 }
