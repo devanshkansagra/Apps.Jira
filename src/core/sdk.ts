@@ -383,4 +383,103 @@ export class SDK {
             };
         }
     }
+
+    /**
+     * Get unassigned issues from Jira
+     */
+    public async getUnassignedIssues({
+        http,
+        token,
+    }: {
+        http: IHttp;
+        token: any;
+    }): Promise<{ success: boolean; issues?: any[]; error?: string }> {
+        try {
+            const cloudId = token?.cloudId;
+            if (!cloudId) {
+                return { success: false, error: "No cloudId found" };
+            }
+
+            // Search for unassigned issues using JQL
+            const jql = "assignee is EMPTY ORDER BY updated DESC";
+            const response = await http.post(
+                `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/search/jql`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token?.token}`,
+                        Accept: "application/json",
+                        "Content-Type": "application/json",
+                    },
+                    content: JSON.stringify({
+                        jql: jql,
+                        fields: ["key", "summary", "status", "priority", "issuetype", "project"],
+                    }),
+                },
+            );
+
+            if (response?.data?.issues) {
+                return { success: true, issues: response.data.issues };
+            }
+
+            return { success: false, error: "Failed to fetch unassigned issues" };
+        } catch (error: any) {
+            console.error("Error fetching unassigned issues:", error);
+            return {
+                success: false,
+                error: error?.message || "Failed to fetch unassigned issues",
+            };
+        }
+    }
+
+    /**
+     * Assign an issue to a user in Jira
+     */
+    public async assignIssueToUser({
+        http,
+        token,
+        issueKey,
+        accountId,
+    }: {
+        http: IHttp;
+        token: any;
+        issueKey: string;
+        accountId: string;
+    }): Promise<{ success: boolean; error?: string }> {
+        try {
+            const cloudId = token?.cloudId;
+            if (!cloudId) {
+                return { success: false, error: "No cloudId found" };
+            }
+
+            const response = await http.put(
+                `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${issueKey}/assignee`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token?.token}`,
+                        Accept: "application/json",
+                        "Content-Type": "application/json",
+                    },
+                    content: JSON.stringify({
+                        accountId: accountId,
+                    }),
+                },
+            );
+
+            // Jira returns 204 No Content on success
+            if (response?.statusCode === 204 || response?.statusCode === 200) {
+                return { success: true };
+            }
+
+            return { success: false, error: "Failed to assign issue" };
+        } catch (error: any) {
+            console.error("Error assigning issue:", error);
+            return {
+                success: false,
+                error:
+                    error?.data?.errorMessages?.[0] ||
+                    error?.message ||
+                    "Failed to assign issue",
+            };
+        }
+    }
 }

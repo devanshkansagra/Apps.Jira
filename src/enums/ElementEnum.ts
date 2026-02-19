@@ -33,4 +33,10 @@ export enum ElementEnum {
     JIRA_SEARCH_RESULTS_MODAL = "jira-search-results-modal",
     JIRA_SEARCH_RESULTS_ACTION = "jira-search-results-action",
     JIRA_SEARCH_RESULTS_BLOCK = "jira-search-results-block",
+    JIRA_ASSIGN_MODAL = "jira-assign-modal",
+    JIRA_ASSIGN_ISSUE_ACTION = "jira-assign-issue-action",
+    JIRA_ASSIGN_ISSUE_BLOCK = "jira-assign-issue-block",
+    JIRA_ASSIGN_USER_ACTION = "jira-assign-user-action",
+    JIRA_ASSIGN_USER_BLOCK = "jira-assign-user-block",
+    JIRA_ASSIGN_ACTION = "jira-assign-action",
 }

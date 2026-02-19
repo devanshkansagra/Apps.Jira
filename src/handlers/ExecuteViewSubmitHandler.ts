@@ -71,7 +71,7 @@ export class ExecuteViewSubmitHandler {
                     ];
 
                 // If assignee is provided, search for their Jira accountId
-                let jiraAccountId: string | undefined;
+                let jiraAccountId: string = "";
                 if (assignee) {
                     const assignedUser = (
                         await this.read.getUserReader().getByUsername(assignee)
@@ -194,6 +194,87 @@ export class ExecuteViewSubmitHandler {
                     appId: this.app.getID(),
                     view: searchResultsModal as IUIKitSurfaceViewParam,
                 } as IUIKitModalResponse;
+            }
+            case ElementEnum.JIRA_ASSIGN_MODAL: {
+                const issueKey =
+                    view.state?.[ElementEnum.JIRA_ASSIGN_ISSUE_BLOCK]?.[
+                        ElementEnum.JIRA_ASSIGN_ISSUE_ACTION
+                    ];
+                const assignee =
+                    view.state?.[ElementEnum.JIRA_ASSIGN_USER_BLOCK]?.[
+                        ElementEnum.JIRA_ASSIGN_USER_ACTION
+                    ];
+
+                if (!issueKey || !assignee) {
+                    const room = (await this.read
+                        .getRoomReader()
+                        .getById("GENERAL")) as IRoom;
+                    await sendNotification(
+                        this.read,
+                        this.modify,
+                        user,
+                        room as IRoom,
+                        "❌ Please select both an issue and an assignee.",
+                    );
+                    return { success: false };
+                }
+
+                // Get the RocketChat user's email to search in Jira
+                const assignedUser = (
+                    await this.read.getUserReader().getByUsername(assignee)
+                ).emails[0];
+                
+                // Search for the Jira accountId
+                const userSearchResult = await sdk.searchJiraUser({
+                    http: this.http,
+                    token: token.token,
+                    query: assignedUser.address,
+                });
+
+                if (!userSearchResult.success || !userSearchResult.accountId) {
+                    const room = (await this.read
+                        .getRoomReader()
+                        .getById("GENERAL")) as IRoom;
+                    await sendNotification(
+                        this.read,
+                        this.modify,
+                        user,
+                        room as IRoom,
+                        `❌ Could not find user "${assignee}" in Jira. Please check the username or email.`,
+                    );
+                    return { success: false };
+                }
+
+                // Assign the issue to the user
+                const assignResult = await sdk.assignIssueToUser({
+                    http: this.http,
+                    token: token.token,
+                    issueKey,
+                    accountId: userSearchResult.accountId,
+                });
+
+                const room = (await this.read
+                    .getRoomReader()
+                    .getById("GENERAL")) as IRoom;
+
+                if (assignResult.success) {
+                    await sendMessage(
+                        this.read,
+                        this.modify,
+                        user,
+                        room as IRoom,
+                        `✅ Issue *${issueKey}* has been assigned to *${assignee}* successfully!`,
+                    );
+                } else {
+                    await sendNotification(
+                        this.read,
+                        this.modify,
+                        user,
+                        room as IRoom,
+                        `❌ Failed to assign issue: ${assignResult.error}`,
+                    );
+                }
+                break;
             }
         }
         return { success: true };

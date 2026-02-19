@@ -12,6 +12,7 @@ import { authorize } from "../oauth/auth";
 import { CreateJiraEntityModal } from "../modals/create";
 import { MyIssuesModal } from "../modals/myIssues";
 import { SearchJiraModal } from "../modals/search";
+import { AssignIssueModal } from "../modals/assign";
 import { AuthPersistence } from "../persistance/authPersistence";
 import { sendNotification } from "../helpers/message";
 
@@ -144,5 +145,44 @@ export class Handler {
             },
             this.sender,
         );
+    }
+
+    public async assign(): Promise<void> {
+        const authPersistence = new AuthPersistence(this.app);
+        const token = await authPersistence.getAccessTokenForUser(this.sender, this.read);
+
+        if (!token) {
+            await sendNotification(
+                this.read,
+                this.modify,
+                this.sender,
+                this.room,
+                "You are not logged in. Please login to Jira first using /jira login"
+            );
+            return;
+        }
+
+        const modal = await AssignIssueModal({
+            app: this.app,
+            read: this.read,
+            modify: this.modify,
+            http: this.http,
+            sender: this.sender,
+            room: this.room,
+            persis: this.persistence,
+            triggerId: this.triggerId,
+            id: this.app.getID(),
+        });
+
+        // Only open the modal if it has valid blocks
+        if (modal && modal.blocks && modal.blocks.length > 0) {
+            await this.modify.getUiController().openSurfaceView(
+                modal as IUIKitSurfaceViewParam,
+                {
+                    triggerId: this.triggerId,
+                },
+                this.sender,
+            );
+        }
     }
 }
