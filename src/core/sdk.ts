@@ -30,45 +30,98 @@ export class SDK {
         persis: IPersistence,
     ) {
         const { clientId, clientSecret } = await getCredentials(read);
+
         const redirectURL =
             "http://localhost:3000/api/apps/public/cef7aa7a-c96a-4bcf-8752-2e50bd34e22f/callback";
 
-        const room = (await read.getRoomReader().getById("GENERAL")) as IRoom;
-
-        const response = await http.post(
-            "https://auth.atlassian.com/oauth/token",
-            {
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
+        try {
+            // 1️⃣ Exchange authorization code for access token
+            const tokenResponse = await http.post(
+                "https://auth.atlassian.com/oauth/token",
+                {
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    content: `grant_type=authorization_code&client_id=${clientId}&client_secret=${clientSecret}&code=${code}&redirect_uri=${redirectURL}`,
                 },
-                content: `code=${code}&client_id=${clientId}&client_secret=${clientSecret}&redirect_uri=${redirectURL}&grant_type=authorization_code`,
-            },
-        );
-
-        let accessToken: any = {};
-        if (response) {
-            accessToken = {
-                expiresAt: response.data?.expires_in,
-                token: response.data?.access_token,
-                refreshToken: response.data?.refresh_token,
-                scope: response.data?.scope,
-            };
-
-            await sendNotification(
-                read,
-                modify,
-                user,
-                room,
-                "Login successful 🚀",
             );
 
+            if (!tokenResponse?.data?.access_token) {
+                throw new Error("Failed to retrieve access token");
+            }
+
+            const { access_token, refresh_token, expires_in, scope } =
+                tokenResponse.data;
+
+            // // 2️⃣ Get Atlassian user info
+            const userResponse = await http.get(
+                "https://api.atlassian.com/me",
+                {
+                    headers: {
+                        Authorization: `Bearer ${access_token}`,
+                        Accept: "application/json",
+                    },
+                },
+            );
+
+
+            // 3️⃣ Get accessible Jira sites (cloudId)
+            const resourcesResponse = await http.get(
+                "https://api.atlassian.com/oauth/token/accessible-resources",
+                {
+                    headers: {
+                        Authorization: `Bearer ${access_token}`,
+                        Accept: "application/json",
+                    },
+                },
+            );
+
+            const resource = resourcesResponse.data?.[0];
+            console.log(resource);
+
+            // if (!resource) {
+            //     throw new Error("No Jira cloud resource found for this user");
+            // }
+
+            // // 4️⃣ Structure final auth object
+            const authData = {
+                token: access_token,
+                refreshToken: refresh_token,
+                expiresAt: Date.now() + expires_in * 1000, // store real expiry timestamp
+                scope,
+                accountId: userResponse.data?.account_id,
+                email: userResponse.data?.email,
+                name: userResponse.data?.name,
+                avatar: userResponse.data?.picture,
+                cloudId: resource.id,
+                siteUrl: resource.url,
+                siteName: resource.name,
+            };
+
+            // 5️⃣ Persist everything
             await this.authPersistence.setAccessTokenForUser(
-                accessToken,
+                authData,
                 user,
                 persis,
             );
-        }
 
-        return accessToken;
+            // 6️⃣ Send success notification
+            const room = await read.getRoomReader().getById("GENERAL");
+
+            if (room) {
+                await sendNotification(
+                    read,
+                    modify,
+                    user,
+                    room,
+                    "Jira login successful 🚀",
+                );
+            }
+
+            return authData;
+        } catch (error) {
+            console.error("OAuth flow failed:", error);
+            throw error;
+        }
     }
 }
