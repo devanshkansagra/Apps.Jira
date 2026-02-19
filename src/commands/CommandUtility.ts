@@ -61,6 +61,15 @@ export class CommandUtility implements ICommandUtility {
             }
             case "create": {
                 await handler.create();
+                break;
+            }
+            case "my": {
+                await handler.myIssues();
+                break;
+            }
+            case "search": {
+                await handler.search();
+                break;
             }
         }
     }

@@ -258,4 +258,129 @@ export class SDK {
             };
         }
     }
+
+    /**
+     * Get issues assigned to the current user
+     */
+    public async getMyIssues({
+        http,
+        token,
+    }: {
+        http: IHttp;
+        token: any;
+    }): Promise<{ success: boolean; issues?: any[]; error?: string }> {
+        try {
+            const cloudId = token?.cloudId;
+            if (!cloudId) {
+                return { success: false, error: "No cloudId found" };
+            }
+
+            // Get the current user's accountId from token
+            const accountId = token?.accountId;
+            if (!accountId) {
+                return { success: false, error: "No accountId found in token" };
+            }
+
+            // Search for issues assigned to the current user using JQL
+            // Using the new /rest/api/3/search/jql endpoint (POST request)
+            const jql = `assignee = "${accountId}" ORDER BY updated DESC`;
+            const response = await http.post(
+                `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/search/jql`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token?.token}`,
+                        Accept: "application/json",
+                        "Content-Type": "application/json",
+                    },
+                    content: JSON.stringify({
+                        jql: jql,
+                        fields: ["key", "summary", "status", "priority", "issuetype", "project", "updated", "created"],
+                    }),
+                },
+            );
+
+            if (response?.data?.issues) {
+                return { success: true, issues: response.data.issues };
+            }
+
+            return { success: false, error: "Failed to fetch issues" };
+        } catch (error: any) {
+            console.error("Error fetching user issues:", error);
+            return {
+                success: false,
+                error: error?.message || "Failed to fetch issues",
+            };
+        }
+    }
+
+    /**
+     * Search for issues by project and optional filters
+     */
+    public async searchIssues({
+        http,
+        token,
+        projectKey,
+        status,
+        issueType,
+        priority,
+        assignee,
+    }: {
+        http: IHttp;
+        token: any;
+        projectKey: string;
+        status?: string;
+        issueType?: string;
+        priority?: string;
+        assignee?: string;
+    }): Promise<{ success: boolean; issues?: any[]; error?: string }> {
+        try {
+            const cloudId = token?.cloudId;
+            if (!cloudId) {
+                return { success: false, error: "No cloudId found" };
+            }
+
+            // Build JQL query based on filters
+            let jql = `project = "${projectKey}"`;
+            if (status && status.trim() !== "") {
+                jql += ` AND status = "${status}"`;
+            }
+            if (issueType && issueType.trim() !== "") {
+                jql += ` AND issuetype = "${issueType}"`;
+            }
+            if (priority && priority.trim() !== "") {
+                jql += ` AND priority = "${priority}"`;
+            }
+            if (assignee && assignee.trim() !== "") {
+                jql += ` AND assignee = "${assignee}"`;
+            }
+            jql += " ORDER BY updated DESC";
+
+            const response = await http.post(
+                `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/search/jql`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token?.token}`,
+                        Accept: "application/json",
+                        "Content-Type": "application/json",
+                    },
+                    content: JSON.stringify({
+                        jql: jql,
+                        fields: ["key", "summary", "status", "priority", "issuetype", "project", "assignee", "updated", "created"],
+                    }),
+                },
+            );
+
+            if (response?.data?.issues) {
+                return { success: true, issues: response.data.issues };
+            }
+
+            return { success: false, error: "Failed to search issues" };
+        } catch (error: any) {
+            console.error("Error searching issues:", error);
+            return {
+                success: false,
+                error: error?.message || "Failed to search issues",
+            };
+        }
+    }
 }
