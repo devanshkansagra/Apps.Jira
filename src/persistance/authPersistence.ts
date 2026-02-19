@@ -14,7 +14,7 @@ export class AuthPersistence {
     constructor(private readonly app: JiraApp) {}
 
     public async setAccessTokenForUser(
-        token: IAuthData,
+        token: object,
         user: IUser,
         persis: IPersistence,
     ) {

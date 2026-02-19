@@ -15,6 +15,7 @@ export async function getAuthorizationURL(read: IRead, user: IUser) {
         "read:jira-work",
         "write:jira-work",
         "read:jira-user",
+        "read:me"
         // add "offline_access" if you want refresh token
     ].join(" ");
 
