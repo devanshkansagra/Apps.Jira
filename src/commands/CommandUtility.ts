@@ -54,6 +54,7 @@ export class CommandUtility implements ICommandUtility {
             this.triggerId || "",
         );
 
+        console.log(args);
         const commandMap: Record<string, (args: string[]) => Promise<void>> = {
             login: () => handler.login(),
             create: () => handler.create(),

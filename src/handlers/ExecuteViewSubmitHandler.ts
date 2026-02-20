@@ -219,16 +219,43 @@ export class ExecuteViewSubmitHandler {
                     return { success: false };
                 }
 
-                // Get the RocketChat user's email to search in Jira
-                const assignedUser = (
-                    await this.read.getUserReader().getByUsername(assignee)
-                ).emails[0];
+                // Get the RocketChat user to search in Jira
+                const rcUser = await this.read.getUserReader().getByUsername(assignee);
+                if (!rcUser) {
+                    const room = (await this.read
+                        .getRoomReader()
+                        .getById("GENERAL")) as IRoom;
+                    await sendNotification(
+                        this.read,
+                        this.modify,
+                        user,
+                        room as IRoom,
+                        `User "${assignee}" not found in Rocket.Chat`,
+                    );
+                    return { success: false };
+                }
+                
+                // Get user's email to search in Jira
+                const userEmail = rcUser.emails?.[0]?.address;
+                if (!userEmail) {
+                    const room = (await this.read
+                        .getRoomReader()
+                        .getById("GENERAL")) as IRoom;
+                    await sendNotification(
+                        this.read,
+                        this.modify,
+                        user,
+                        room as IRoom,
+                        `No email found for user "${assignee}" in Rocket.Chat`,
+                    );
+                    return { success: false };
+                }
                 
                 // Search for the Jira accountId
                 const userSearchResult = await sdk.searchJiraUser({
                     http: this.http,
                     token: token.token,
-                    query: assignedUser.address,
+                    query: userEmail,
                 });
 
                 if (!userSearchResult.success || !userSearchResult.accountId) {
