@@ -166,6 +166,9 @@ export class SDK {
                     issuetype: {
                         name: issueType,
                     },
+                    assignee: {
+                        accountId: null
+                    }
                 },
             };
 
