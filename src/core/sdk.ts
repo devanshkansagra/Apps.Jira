@@ -485,4 +485,54 @@ export class SDK {
             };
         }
     }
+
+    /**
+     * Check if an issue is assigned to any user
+     * Returns true if the issue has an assignee, false otherwise
+     */
+    public async isIssueAssigned({
+        http,
+        token,
+        issueKey,
+    }: {
+        http: IHttp;
+        token: any;
+        issueKey: string;
+    }): Promise<{ success: boolean; isAssigned?: boolean; assignee?: any; error?: string }> {
+        try {
+            const cloudId = token?.cloudId;
+            if (!cloudId) {
+                return { success: false, error: "No cloudId found" };
+            }
+
+            const response = await http.get(
+                `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${issueKey}?fields=assignee`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token?.token}`,
+                        Accept: "application/json",
+                    },
+                },
+            );
+
+            if (response?.data?.fields) {
+                const assignee = response.data.fields.assignee;
+                const isAssigned = assignee !== null && assignee !== undefined;
+                return { 
+                    success: true, 
+                    isAssigned,
+                    assignee: isAssigned ? assignee : null
+                };
+            }
+
+            return { success: false, error: "Failed to fetch issue details" };
+        } catch (error: any) {
+            console.error("Error checking issue assignment:", error);
+            return {
+                success: false,
+                error: error?.message || "Failed to check issue assignment",
+            };
+        }
+    }
 }
+

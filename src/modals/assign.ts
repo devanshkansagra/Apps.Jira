@@ -64,8 +64,6 @@ export async function AssignIssueModal({
         token,
     );
 
-    console.log("Fetched issues:", JSON.stringify(issues));
-
     if (!issues || issues.length === 0) {
         await sendNotification(
             read,
