@@ -41,8 +41,8 @@ export class CommandUtility implements ICommandUtility {
     }
 
     public async resolveCommand(): Promise<void> {
-        const command = this.params[0];
-
+        const [commandRaw, ...args] = this.params;
+        const command = commandRaw?.toLowerCase();
         const handler = new Handler(
             this.app,
             this.read,
@@ -54,27 +54,14 @@ export class CommandUtility implements ICommandUtility {
             this.triggerId || "",
         );
 
-        switch (command) {
-            case "login": {
-                await handler.login();
-                break;
-            }
-            case "create": {
-                await handler.create();
-                break;
-            }
-            case "my": {
-                await handler.myIssues();
-                break;
-            }
-            case "search": {
-                await handler.search();
-                break;
-            }
-            case "assign": {
-                await handler.assign();
-                break;
-            }
-        }
+        const commandMap: Record<string, (args: string[]) => Promise<void>> = {
+            login: () => handler.login(),
+            create: () => handler.create(),
+            my: () => handler.myIssues(),
+            search: (args) => handler.search(args),
+            assign: (args) => handler.assign(args),
+        };
+
+        await commandMap[command](args);
     }
 }

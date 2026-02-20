@@ -111,7 +111,7 @@ export class Handler {
         );
     }
 
-    public async search(): Promise<void> {
+    public async search(args: string[]): Promise<void> {
         const authPersistence = new AuthPersistence(this.app);
         const token = await authPersistence.getAccessTokenForUser(this.sender, this.read);
 
@@ -147,7 +147,7 @@ export class Handler {
         );
     }
 
-    public async assign(): Promise<void> {
+    public async assign(args: string[]): Promise<void> {
         const authPersistence = new AuthPersistence(this.app);
         const token = await authPersistence.getAccessTokenForUser(this.sender, this.read);
 
