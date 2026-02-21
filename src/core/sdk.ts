@@ -11,6 +11,7 @@ import { getCredentials } from "../helpers/getCredentials";
 import { sendNotification } from "../helpers/message";
 import { AuthPersistence } from "../persistance/authPersistence";
 import { read } from "fs";
+import { URLEnum } from "../enums/URLEnum";
 
 export class SDK {
     private readonly http: IHttp;
@@ -32,8 +33,7 @@ export class SDK {
     ) {
         const { clientId, clientSecret } = await getCredentials(read);
 
-        const redirectURL =
-            "http://localhost:3000/api/apps/public/cef7aa7a-c96a-4bcf-8752-2e50bd34e22f/callback";
+        const redirectURL = URLEnum.callback;
 
         try {
             const tokenResponse = await http.post(
@@ -167,8 +167,8 @@ export class SDK {
                         name: issueType,
                     },
                     assignee: {
-                        accountId: null
-                    }
+                        accountId: null,
+                    },
                 },
             };
 
@@ -185,7 +185,6 @@ export class SDK {
                     name: priority,
                 };
             }
-            
 
             const response = await http.post(
                 `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue`,
@@ -198,7 +197,6 @@ export class SDK {
                     content: JSON.stringify(issueData),
                 },
             );
-
 
             if (response?.data?.key) {
                 return { success: true, issueKey: response.data.key };
@@ -297,7 +295,16 @@ export class SDK {
                     },
                     content: JSON.stringify({
                         jql: jql,
-                        fields: ["key", "summary", "status", "priority", "issuetype", "project", "updated", "created"],
+                        fields: [
+                            "key",
+                            "summary",
+                            "status",
+                            "priority",
+                            "issuetype",
+                            "project",
+                            "updated",
+                            "created",
+                        ],
                     }),
                 },
             );
@@ -368,7 +375,17 @@ export class SDK {
                     },
                     content: JSON.stringify({
                         jql: jql,
-                        fields: ["key", "summary", "status", "priority", "issuetype", "project", "assignee", "updated", "created"],
+                        fields: [
+                            "key",
+                            "summary",
+                            "status",
+                            "priority",
+                            "issuetype",
+                            "project",
+                            "assignee",
+                            "updated",
+                            "created",
+                        ],
                     }),
                 },
             );
@@ -415,7 +432,14 @@ export class SDK {
                     },
                     content: JSON.stringify({
                         jql: jql,
-                        fields: ["key", "summary", "status", "priority", "issuetype", "project"],
+                        fields: [
+                            "key",
+                            "summary",
+                            "status",
+                            "priority",
+                            "issuetype",
+                            "project",
+                        ],
                     }),
                 },
             );
@@ -424,7 +448,10 @@ export class SDK {
                 return { success: true, issues: response.data.issues };
             }
 
-            return { success: false, error: "Failed to fetch unassigned issues" };
+            return {
+                success: false,
+                error: "Failed to fetch unassigned issues",
+            };
         } catch (error: any) {
             console.error("Error fetching unassigned issues:", error);
             return {
@@ -498,7 +525,12 @@ export class SDK {
         http: IHttp;
         token: any;
         issueKey: string;
-    }): Promise<{ success: boolean; isAssigned?: boolean; assignee?: any; error?: string }> {
+    }): Promise<{
+        success: boolean;
+        isAssigned?: boolean;
+        assignee?: any;
+        error?: string;
+    }> {
         try {
             const cloudId = token?.cloudId;
             if (!cloudId) {
@@ -518,10 +550,10 @@ export class SDK {
             if (response?.data?.fields) {
                 const assignee = response.data.fields.assignee;
                 const isAssigned = assignee !== null && assignee !== undefined;
-                return { 
-                    success: true, 
+                return {
+                    success: true,
                     isAssigned,
-                    assignee: isAssigned ? assignee : null
+                    assignee: isAssigned ? assignee : null,
                 };
             }
 
@@ -535,4 +567,3 @@ export class SDK {
         }
     }
 }
-

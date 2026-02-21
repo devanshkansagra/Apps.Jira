@@ -1,13 +1,14 @@
 import { IRead } from "@rocket.chat/apps-engine/definition/accessors";
 import { IUser } from "@rocket.chat/apps-engine/definition/users";
 import { getCredentials } from "./getCredentials";
+import { URLEnum } from "../enums/URLEnum";
 
 export async function getAuthorizationURL(read: IRead, user: IUser) {
     const { clientId } = await getCredentials(read);
 
-    const baseURL = "https://auth.atlassian.com/authorize";
+    const baseURL = URLEnum.baseURL;
     const audience = "api.atlassian.com";
-    const redirectURL = 'http://localhost:3000/api/apps/public/cef7aa7a-c96a-4bcf-8752-2e50bd34e22f/callback'; // keep this dynamic
+    const redirectURL = URLEnum.callback; // keep this dynamic
     const responseType = "code";
     const prompt = "consent";
 
