@@ -13,6 +13,7 @@ import {
 } from "@rocket.chat/apps-engine/definition/uikit";
 import { JiraApp } from "../../JiraApp";
 import { ElementEnum } from "../enums/ElementEnum";
+import { ModalEnum } from "../enums/ModalEnum";
 import { AuthPersistence } from "../persistance/authPersistence";
 import { sendMessage, sendNotification } from "../helpers/message";
 import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
@@ -44,7 +45,7 @@ export class ExecuteViewSubmitHandler {
         // Extract form variables from the modal
 
         switch (view.id) {
-            case ElementEnum.JIRA_CREATE_MODAL: {
+            case ModalEnum.JIRA_CREATE_MODAL: {
                 const project =
                     view.state?.[ElementEnum.JIRA_PROJECT_BLOCK]?.[
                         ElementEnum.JIRA_PROJECT_ACTION
@@ -137,7 +138,7 @@ export class ExecuteViewSubmitHandler {
                 }
                 break;
             }
-            case ElementEnum.JIRA_SEARCH_MODAL: {
+            case ModalEnum.JIRA_SEARCH_MODAL: {
                 const projectKey =
                     view.state?.[ElementEnum.JIRA_SEARCH_PROJECT_BLOCK]?.[
                         ElementEnum.JIRA_SEARCH_PROJECT_ACTION
@@ -195,7 +196,7 @@ export class ExecuteViewSubmitHandler {
                     view: searchResultsModal as IUIKitSurfaceViewParam,
                 } as IUIKitModalResponse;
             }
-            case ElementEnum.JIRA_ASSIGN_MODAL: {
+            case ModalEnum.JIRA_ASSIGN_MODAL: {
                 const issueKey =
                     view.state?.[ElementEnum.JIRA_ASSIGN_ISSUE_BLOCK]?.[
                         ElementEnum.JIRA_ASSIGN_ISSUE_ACTION

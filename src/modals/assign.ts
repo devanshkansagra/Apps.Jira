@@ -9,6 +9,7 @@ import { UIKitSurfaceType } from "@rocket.chat/apps-engine/definition/uikit";
 import { LayoutBlock } from "@rocket.chat/ui-kit";
 import { TextTypes } from "../enums/TextTypes";
 import { ElementEnum } from "../enums/ElementEnum";
+import { ModalEnum } from "../enums/ModalEnum";
 import { JiraApp } from "../../JiraApp";
 import { IUser } from "@rocket.chat/apps-engine/definition/users";
 import { sendNotification } from "../helpers/message";
@@ -147,7 +148,7 @@ export async function AssignIssueModal({
 
     return {
         type: UIKitSurfaceType.MODAL,
-        id: ElementEnum.JIRA_ASSIGN_MODAL,
+        id: ModalEnum.JIRA_ASSIGN_MODAL,
         title: {
             type: TextTypes.PLAIN_TEXT,
             text: "Assign Jira Issue",
@@ -159,7 +160,7 @@ export async function AssignIssueModal({
                 type: TextTypes.PLAIN_TEXT,
                 text: "Assign",
             },
-            blockId: ElementEnum.JIRA_ASSIGN_MODAL,
+            blockId: ModalEnum.JIRA_ASSIGN_MODAL,
             actionId: ElementEnum.JIRA_ASSIGN_ACTION,
             appId: id,
         },

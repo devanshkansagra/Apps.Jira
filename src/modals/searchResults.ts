@@ -9,6 +9,7 @@ import { UIKitSurfaceType } from "@rocket.chat/apps-engine/definition/uikit";
 import { LayoutBlock } from "@rocket.chat/ui-kit";
 import { TextTypes } from "../enums/TextTypes";
 import { ElementEnum } from "../enums/ElementEnum";
+import { ModalEnum } from "../enums/ModalEnum";
 import { JiraApp } from "../../JiraApp";
 import { IUser } from "@rocket.chat/apps-engine/definition/users";
 import { sendNotification } from "../helpers/message";
@@ -194,7 +195,7 @@ export async function SearchResultsModal({
 
     return {
         type: UIKitSurfaceType.MODAL,
-        id: ElementEnum.JIRA_SEARCH_RESULTS_MODAL,
+        id: ModalEnum.JIRA_SEARCH_RESULTS_MODAL,
         title: {
             type: TextTypes.PLAIN_TEXT,
             text: "Search Results",

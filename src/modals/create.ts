@@ -9,6 +9,7 @@ import { UIKitSurfaceType } from "@rocket.chat/apps-engine/definition/uikit";
 import { LayoutBlock } from "@rocket.chat/ui-kit";
 import { TextTypes } from "../enums/TextTypes";
 import { ElementEnum } from "../enums/ElementEnum";
+import { ModalEnum } from "../enums/ModalEnum";
 import { JiraApp } from "../../JiraApp";
 import { IUser } from "@rocket.chat/apps-engine/definition/users";
 import { sendNotification } from "../helpers/message";
@@ -284,7 +285,7 @@ export async function CreateJiraEntityModal({
 
     return {
         type: UIKitSurfaceType.MODAL,
-        id: ElementEnum.JIRA_CREATE_MODAL,
+        id: ModalEnum.JIRA_CREATE_MODAL,
         title: {
             type: TextTypes.PLAIN_TEXT,
             text: "Create Jira Issue",
@@ -296,7 +297,7 @@ export async function CreateJiraEntityModal({
                 type: TextTypes.PLAIN_TEXT,
                 text: "Create",
             },
-            blockId: ElementEnum.JIRA_CREATE_MODAL,
+            blockId: ModalEnum.JIRA_CREATE_MODAL,
             actionId: ElementEnum.JIRA_CREATE_ACTION,
             appId: id,
         },
