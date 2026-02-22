@@ -14,7 +14,7 @@ import { MyIssuesModal } from "../modals/myIssues";
 import { SearchJiraModal } from "../modals/search";
 import { AssignIssueModal } from "../modals/assign";
 import { AuthPersistence } from "../persistance/authPersistence";
-import { sendNotification } from "../helpers/message";
+import { sendMessage, sendNotification } from "../helpers/message";
 
 export class Handler {
     constructor(
@@ -39,7 +39,7 @@ export class Handler {
         );
     }
 
-    public async create(): Promise<void> {
+    public async create(args?: string[]): Promise<void> {
         const authPersistence = new AuthPersistence(this.app);
         const token = await authPersistence.getAccessTokenForUser(
             this.sender,
@@ -57,6 +57,40 @@ export class Handler {
             return;
         }
 
+        if (args && args.length >= 3) {
+            const issueType = args[0];
+            const projectKey = args[1];
+            const taskSummary = args.slice(2).join(" "); // Join remaining args as summary
+
+            const result = await this.app.sdk.createJiraIssue({
+                http: this.http,
+                token: token.token,
+                projectKey: projectKey,
+                issueType: issueType,
+                summary: taskSummary,
+            });
+
+            if (result.success) {
+                await sendMessage(
+                    this.read,
+                    this.modify,
+                    this.sender,
+                    this.room,
+                    `✅ Jira issue *${result.issueKey}* created successfully!\n\n📋 Summary: ${taskSummary}\n🎯 Project: ${projectKey}\n📝 Type: ${issueType}\n👤 Assignee: Unassigned`,
+                );
+            } else {
+                await sendNotification(
+                    this.read,
+                    this.modify,
+                    this.sender,
+                    this.room,
+                    `❌ Failed to create Jira issue: ${result.error}`,
+                );
+            }
+            return;
+        }
+
+        // If not enough arguments, show the modal (existing behavior)
         const modal = await CreateJiraEntityModal({
             app: this.app,
             read: this.read,

@@ -57,7 +57,7 @@ export class CommandUtility implements ICommandUtility {
         console.log(args);
         const commandMap: Record<string, (args: string[]) => Promise<void>> = {
             login: () => handler.login(),
-            create: () => handler.create(),
+            create: (args) => handler.create(args),
             my: () => handler.myIssues(),
             search: (args) => handler.search(args),
             assign: (args) => handler.assign(args),
