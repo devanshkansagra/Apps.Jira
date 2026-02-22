@@ -132,8 +132,8 @@ export class SDK {
         projectKey: string;
         issueType: string;
         summary: string;
-        description: string;
-        priority: string;
+        description?: string;
+        priority?: string;
         assignee?: string;
     }): Promise<{ success: boolean; issueKey?: string; error?: string }> {
         try {
@@ -148,21 +148,6 @@ export class SDK {
                         key: projectKey,
                     },
                     summary: summary,
-                    description: {
-                        type: "doc",
-                        version: 1,
-                        content: [
-                            {
-                                type: "paragraph",
-                                content: [
-                                    {
-                                        type: "text",
-                                        text: description,
-                                    },
-                                ],
-                            },
-                        ],
-                    },
                     issuetype: {
                         name: issueType,
                     },
@@ -172,6 +157,23 @@ export class SDK {
                 },
             };
 
+            if (description) {
+                issueData.fields.description = {
+                    type: "doc",
+                    version: 1,
+                    content: [
+                        {
+                            type: "paragraph",
+                            content: [
+                                {
+                                    type: "text",
+                                    text: description,
+                                },
+                            ],
+                        },
+                    ],
+                };
+            }
             // Add assignee if provided
             if (assignee) {
                 issueData.fields.assignee = {
