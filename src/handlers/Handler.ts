@@ -15,6 +15,7 @@ import { SearchJiraModal } from "../modals/search";
 import { AssignIssueModal } from "../modals/assign";
 import { AuthPersistence } from "../persistance/authPersistence";
 import { sendMessage, sendNotification } from "../helpers/message";
+import { getCloudURL } from "../helpers/getSettings";
 
 export class Handler {
     constructor(
@@ -334,5 +335,199 @@ export class Handler {
                 );
             }
         }
+    }
+
+    public async share(args: string[]): Promise<void> {
+        const authPersistence = new AuthPersistence(this.app);
+        const token = await authPersistence.getAccessTokenForUser(
+            this.sender,
+            this.read,
+        );
+
+        if (!token) {
+            await sendNotification(
+                this.read,
+                this.modify,
+                this.sender,
+                this.room,
+                "You are not logged in. Please login to Jira first using /jira login",
+            );
+            return;
+        }
+
+        if (args.length < 2) {
+            await sendNotification(
+                this.read,
+                this.modify,
+                this.sender,
+                this.room,
+                "Usage: /jira share <issue_id> @user OR /jira share <issue_id> #channel",
+            );
+            return;
+        }
+
+        const issueKey = args[0];
+        const target = args[1];
+
+        const isUser = target.startsWith("@");
+        const isChannel = target.startsWith("#");
+
+        if (!isUser && !isChannel) {
+            await sendNotification(
+                this.read,
+                this.modify,
+                this.sender,
+                this.room,
+                "Invalid target. Use @username to share with a user or #channelname to share with a channel.",
+            );
+            return;
+        }
+
+        const issueResult = await this.app.sdk.getIssue({
+            http: this.http,
+            token: token.token,
+            issueKey: issueKey,
+        });
+
+        if (!issueResult.success || !issueResult.issue) {
+            await sendNotification(
+                this.read,
+                this.modify,
+                this.sender,
+                this.room,
+                `Failed to fetch issue ${issueKey}: ${issueResult.error}`,
+            );
+            return;
+        }
+
+        const issue = issueResult.issue;
+        const fields = issue.fields;
+
+        const assignee = fields.assignee?.displayName || "Unassigned";
+        const priority = fields.priority?.name || "None";
+        const status = fields.status?.name || "Unknown";
+        const project = fields.project?.name || "Unknown";
+        const issueType = fields.issuetype?.name || "Unknown";
+        const description = this.formatDescription(fields.description);
+        const created = fields.created ? new Date(fields.created).toLocaleDateString() : "Unknown";
+        const updated = fields.updated ? new Date(fields.updated).toLocaleDateString() : "Unknown";
+
+        const issueUrl = await this.getIssueUrl(issue.key);
+
+        const issueMessage = `📋 *Jira Issue Shared:* ${issue.key}
+
+*Summary:* ${fields.summary}
+
+*Project:* ${project}
+*Type:* ${issueType}
+*Status:* ${status}
+*Priority:* ${priority}
+*Assignee:* ${assignee}
+*Created:* ${created}
+*Updated:* ${updated}
+
+*Description:*
+${description}
+
+🔗 View in Jira: ${issueUrl}`;
+
+        if (isUser) {
+            const username = target.substring(1);
+            const targetUser = await this.read.getUserReader().getByUsername(username);
+
+            if (!targetUser) {
+                await sendNotification(
+                    this.read,
+                    this.modify,
+                    this.sender,
+                    this.room,
+                    `User "${username}" not found in Rocket.Chat`,
+                );
+                return;
+            }
+
+            await sendNotification(
+                this.read,
+                this.modify,
+                targetUser,
+                this.room,
+                issueMessage,
+            );
+
+            await sendNotification(
+                this.read,
+                this.modify,
+                this.sender,
+                this.room,
+                `✅ Issue ${issue.key} shared successfully with @${username}`,
+            );
+        } else if (isChannel) {
+            const channelName = target.substring(1); 
+            const targetRoom = await this.read.getRoomReader().getByName(channelName);
+
+            if (!targetRoom) {
+                await sendNotification(
+                    this.read,
+                    this.modify,
+                    this.sender,
+                    this.room,
+                    `Channel "${channelName}" not found in Rocket.Chat`,
+                );
+                return;
+            }
+
+            await sendMessage(
+                this.read,
+                this.modify,
+                this.sender,
+                targetRoom,
+                issueMessage,
+            );
+
+            await sendNotification(
+                this.read,
+                this.modify,
+                this.sender,
+                this.room,
+                `✅ Issue ${issue.key} shared successfully with #${channelName}`,
+            );
+        }
+    }
+
+    private formatDescription(description: any): string {
+        if (!description) {
+            return "No description provided.";
+        }
+
+        if (description.type === "doc" && description.content) {
+            return this.extractTextFromADF(description);
+        }
+
+        return JSON.stringify(description);
+    }
+
+    private extractTextFromADF(adf: any): string {
+        let text = "";
+
+        const extract = (node: any) => {
+            if (node.type === "text") {
+                text += node.text;
+            } else if (node.content) {
+                node.content.forEach((child: any) => extract(child));
+            }
+        };
+
+        adf.content.forEach((node: any) => extract(node));
+
+        if (text.length > 500) {
+            text = text.substring(0, 500) + "...";
+        }
+
+        return text || "No description provided.";
+    }
+
+    private async getIssueUrl(issueKey: string): Promise<string> {
+        const cloudUrl = await getCloudURL(this.read);
+        return `${cloudUrl}/browse/${issueKey}`;
     }
 }
