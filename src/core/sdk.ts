@@ -568,4 +568,150 @@ export class SDK {
             };
         }
     }
+
+    /**
+     * Get full issue details by issue key
+     */
+    public async getIssue({
+        http,
+        token,
+        issueKey,
+    }: {
+        http: IHttp;
+        token: any;
+        issueKey: string;
+    }): Promise<{ success: boolean; issue?: any; error?: string }> {
+        try {
+            const cloudId = token?.cloudId;
+            if (!cloudId) {
+                return { success: false, error: "No cloudId found" };
+            }
+
+            const response = await http.get(
+                `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${issueKey}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token?.token}`,
+                        Accept: "application/json",
+                    },
+                },
+            );
+
+            if (response?.data) {
+                return { success: true, issue: response.data };
+            }
+
+            return { success: false, error: "Failed to fetch issue details" };
+        } catch (error: any) {
+            console.error("Error fetching issue details:", error);
+            return {
+                success: false,
+                error: error?.message || "Failed to fetch issue details",
+            };
+        }
+    }
+
+    /**
+     * Add a comment to a Jira issue
+     */
+    public async addComment({
+        http,
+        token,
+        issueKey,
+        comment,
+    }: {
+        http: IHttp;
+        token: any;
+        issueKey: string;
+        comment: string;
+    }): Promise<{ success: boolean; error?: string }> {
+        try {
+            const cloudId = token?.cloudId;
+            if (!cloudId) {
+                return { success: false, error: "No cloudId found" };
+            }
+
+            const response = await http.post(
+                `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${issueKey}/comment`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token?.token}`,
+                        Accept: "application/json",
+                        "Content-Type": "application/json",
+                    },
+                    content: JSON.stringify({
+                        body: {
+                            type: "doc",
+                            version: 1,
+                            content: [
+                                {
+                                    type: "paragraph",
+                                    content: [
+                                        {
+                                            type: "text",
+                                            text: comment,
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    }),
+                },
+            );
+
+            if (response?.data) {
+                return { success: true };
+            }
+
+            return { success: false, error: "Failed to add comment" };
+        } catch (error: any) {
+            console.error("Error adding comment:", error);
+            return {
+                success: false,
+                error: error?.message || "Failed to add comment",
+            };
+        }
+    }
+
+    /**
+     * Get comments for a Jira issue
+     */
+    public async getComments({
+        http,
+        token,
+        issueKey,
+    }: {
+        http: IHttp;
+        token: any;
+        issueKey: string;
+    }): Promise<{ success: boolean; comments?: any[]; error?: string }> {
+        try {
+            const cloudId = token?.cloudId;
+            if (!cloudId) {
+                return { success: false, error: "No cloudId found" };
+            }
+
+            const response = await http.get(
+                `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${issueKey}/comment`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token?.token}`,
+                        Accept: "application/json",
+                    },
+                },
+            );
+
+            if (response?.data?.comments) {
+                return { success: true, comments: response.data.comments };
+            }
+
+            return { success: false, error: "Failed to fetch comments" };
+        } catch (error: any) {
+            console.error("Error fetching comments:", error);
+            return {
+                success: false,
+                error: error?.message || "Failed to fetch comments",
+            };
+        }
+    }
 }

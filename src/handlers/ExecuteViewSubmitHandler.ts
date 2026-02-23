@@ -182,11 +182,10 @@ export class ExecuteViewSubmitHandler {
                 await this.modify.getUiController().openSurfaceView(
                     searchResultsModal as IUIKitSurfaceViewParam,
                     {
-                        triggerId
+                        triggerId,
                     },
                     user,
                 );
-
 
                 return {
                     success: true,
@@ -221,7 +220,9 @@ export class ExecuteViewSubmitHandler {
                 }
 
                 // Get the RocketChat user to search in Jira
-                const rcUser = await this.read.getUserReader().getByUsername(assignee);
+                const rcUser = await this.read
+                    .getUserReader()
+                    .getByUsername(assignee);
                 if (!rcUser) {
                     const room = (await this.read
                         .getRoomReader()
@@ -235,7 +236,7 @@ export class ExecuteViewSubmitHandler {
                     );
                     return { success: false };
                 }
-                
+
                 // Get user's email to search in Jira
                 const userEmail = rcUser.emails?.[0]?.address;
                 if (!userEmail) {
@@ -251,7 +252,7 @@ export class ExecuteViewSubmitHandler {
                     );
                     return { success: false };
                 }
-                
+
                 // Search for the Jira accountId
                 const userSearchResult = await sdk.searchJiraUser({
                     http: this.http,
@@ -300,6 +301,71 @@ export class ExecuteViewSubmitHandler {
                         user,
                         room as IRoom,
                         `❌ Failed to assign issue: ${assignResult.error}`,
+                    );
+                }
+                break;
+            }
+
+            case ModalEnum.JIRA_ADD_COMMENT_MODAL: {
+                const comment =
+                    view.state?.[ElementEnum.JIRA_ADD_COMMENT_BLOCK]?.[
+                        ElementEnum.JIRA_ADD_COMMENT_ACTION
+                    ];
+
+                const room = (await this.read
+                    .getRoomReader()
+                    .getById("GENERAL")) as IRoom;
+                if (!comment) {
+                    await sendNotification(
+                        this.read,
+                        this.modify,
+                        user,
+                        room as IRoom,
+                        "Please enter a comment.",
+                    );
+                    break;
+                }
+
+                // Get the issue key from the hidden input field
+                const issueKey =
+                    view.state?.["jira-add-comment-issue-key-block"]?.[
+                        "jira-add-comment-issue-key"
+                    ];
+
+                if (!issueKey) {
+                    await sendNotification(
+                        this.read,
+                        this.modify,
+                        user,
+                        room as IRoom,
+                        "Invalid issue key. Please try again.",
+                    );
+                    break;
+                }
+
+                // Add the comment to the Jira issue
+                const commentResult = await sdk.addComment({
+                    http: this.http,
+                    token: token.token,
+                    issueKey,
+                    comment,
+                });
+
+                if (commentResult.success) {
+                    await sendNotification(
+                        this.read,
+                        this.modify,
+                        user,
+                        room as IRoom,
+                        `✅ Comment added successfully to issue *${issueKey}*!`,
+                    );
+                } else {
+                    await sendNotification(
+                        this.read,
+                        this.modify,
+                        user,
+                        room as IRoom,
+                        `❌ Failed to add comment: ${commentResult.error}`,
                     );
                 }
                 break;
