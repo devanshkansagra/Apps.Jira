@@ -25,4 +25,16 @@ export const settings: ISetting[] = [
         hidden: false,
         multiline: false,
     },
+    {
+        id: "jira-cloud-url",
+        type: SettingType.STRING,
+        packageValue: "",
+        required: true,
+        public: false,
+        section: "CredentialSettings",
+        i18nLabel: "Jira Cloud URL",
+        i18nPlaceholder: "Jira Cloud URL",
+        hidden: false,
+        multiline: false,
+    },
 ];

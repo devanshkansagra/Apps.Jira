@@ -13,3 +13,12 @@ export async function getCredentials(read: IRead) {
 
     return { clientId, clientSecret };
 }
+
+export async function getCloudURL(read: IRead) {
+    const cloudURL = await read
+        .getEnvironmentReader()
+        .getSettings()
+        .getValueById("jira-cloud-url");
+
+    return cloudURL;
+}

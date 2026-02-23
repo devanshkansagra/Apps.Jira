@@ -1,6 +1,6 @@
 import { IRead } from "@rocket.chat/apps-engine/definition/accessors";
 import { IUser } from "@rocket.chat/apps-engine/definition/users";
-import { getCredentials } from "./getCredentials";
+import { getCredentials } from "./getSettings";
 import { URLEnum } from "../enums/URLEnum";
 
 export async function getAuthorizationURL(read: IRead, user: IUser) {
