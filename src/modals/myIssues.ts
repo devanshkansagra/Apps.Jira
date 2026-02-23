@@ -132,7 +132,6 @@ export async function MyIssuesModal({
                         text: "View",
                         emoji: true,
                     },
-                    url: `${token.siteUrl}/browse/${issueKey}`,
                     actionId: `view-issue-${issueKey}`,
                     blockId: `view-issue-block-${issueKey}`,
                     appId: id,

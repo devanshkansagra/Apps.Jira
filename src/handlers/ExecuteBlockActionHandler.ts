@@ -16,6 +16,8 @@ import { ElementEnum } from "../enums/ElementEnum";
 import { LayoutBlock } from "@rocket.chat/ui-kit";
 import { sendMessage, sendNotification } from "../helpers/message";
 import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
+import { IssueDetailsModal } from "../modals/issueDetails";
+import { AddCommentModal } from "../modals/addComment";
 
 export class ExecuteBlockActionHandler {
     private context: UIKitBlockInteractionContext;
@@ -44,6 +46,95 @@ export class ExecuteBlockActionHandler {
         } = this.context.getInteractionData();
 
         try {
+            // Handle view-issue action (format: view-issue-{issueKey})
+            if (actionId && actionId.startsWith("view-issue-")) {
+                const issueKey = actionId.replace("view-issue-", "");
+                
+                const modal = await IssueDetailsModal({
+                    app: this.app,
+                    read: this.read,
+                    modify: this.modify,
+                    http: this.http,
+                    sender: user,
+                    room: room as IRoom,
+                    persis: this.persistence,
+                    triggerId,
+                    id: this.app.getID(),
+                    issueKey,
+                });
+
+                await this.modify.getUiController().openSurfaceView(
+                    modal as IUIKitSurfaceViewParam,
+                    {
+                        triggerId,
+                    },
+                    user,
+                );
+                
+                return {
+                    success: true,
+                };
+            }
+
+            // Handle Add Comment action
+            if (actionId === ElementEnum.JIRA_ISSUE_DETAILS_ADD_COMMENT_ACTION) {
+                const issueKey = value || "";
+                
+                if (!issueKey) {
+                    await sendNotification(
+                        this.read,
+                        this.modify,
+                        user,
+                        room as IRoom,
+                        "Invalid issue key. Please try again.",
+                    );
+                    return {
+                        success: true,
+                    };
+                }
+                
+                const modal = await AddCommentModal({
+                    app: this.app,
+                    read: this.read,
+                    modify: this.modify,
+                    http: this.http,
+                    sender: user,
+                    room: room as IRoom,
+                    persis: this.persistence,
+                    triggerId,
+                    id: this.app.getID(),
+                    issueKey,
+                });
+
+                await this.modify.getUiController().openSurfaceView(
+                    modal as IUIKitSurfaceViewParam,
+                    {
+                        triggerId,
+                    },
+                    user,
+                );
+                
+                return {
+                    success: true,
+                };
+            }
+
+            // Handle Share Issue action
+            if (actionId === ElementEnum.JIRA_ISSUE_DETAILS_SHARE_ACTION) {
+                const issueKey = value;
+                // TODO: Implement share issue feature
+                await sendNotification(
+                    this.read,
+                    this.modify,
+                    user,
+                    room as IRoom,
+                    `Share issue feature for issue ${issueKey} is not yet implemented.`,
+                );
+                return {
+                    success: true,
+                };
+            }
+
             switch (actionId) {
 
                 case ElementEnum.LOGIN_BUTTON_ACTION: {
