@@ -1,25 +1,28 @@
 import {
+    ApiEndpoint,
+    IApiEndpointInfo,
+    IApiRequest,
+    IApiResponse,
+} from "@rocket.chat/apps-engine/definition/api";
+import { JiraApp } from "../../JiraApp";
+import {
     IRead,
     IModify,
     IHttp,
     IPersistence,
 } from "@rocket.chat/apps-engine/definition/accessors";
-import {
-    ApiEndpoint,
-    IApiEndpoint,
-    IApiEndpointInfo,
-    IApiExample,
-    IApiRequest,
-    IApiResponse,
-} from "@rocket.chat/apps-engine/definition/api";
-import { JiraApp } from "../../JiraApp";
+import { SubscriptionPersistence } from "../persistance/subscriptionPersistence";
+import { sendMessage } from "../helpers/message";
+import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
 
-export class WebhookEndPoint extends ApiEndpoint {
-    path: string = "callback";
-    constructor(public app: JiraApp) {
+export class WebhookEndpoint extends ApiEndpoint {
+    path: string = "webhook";
+    public app: JiraApp;
+    constructor(app: JiraApp) {
         super(app);
     }
-    async get(
+
+    async post(
         request: IApiRequest,
         endpoint: IApiEndpointInfo,
         read: IRead,
@@ -27,75 +30,173 @@ export class WebhookEndPoint extends ApiEndpoint {
         http: IHttp,
         persis: IPersistence,
     ): Promise<IApiResponse> {
-        const { state, code } = request.query;
+        const issue = request.content.issue;
+        const projectId = issue.fields.project.key;
 
-        const user = await read.getUserReader().getById(state);
-
-        const sdk = this.app.sdk;
-
-        let token = await sdk.getAccessToken(
-            read,
-            code,
-            user,
-            modify,
-            http,
+        const subscriptionPersistence = new SubscriptionPersistence(
             persis,
+            read.getPersistenceReader(),
         );
+
+        const subscribers = await subscriptionPersistence.getSubscribedChannels(projectId);
         
-        return {
-            status: 200,
-            content: `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8" />
-                <title>Authorization Successful</title>
-                <style>
-                    body {
-                        margin: 0;
-                        padding: 0;
-                        font-family: Arial, sans-serif;
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        height: 100vh;
-                    }
-                    .card {
-                        background: white;
-                        padding: 40px;
-                        border-radius: 12px;
-                        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-                        text-align: center;
-                        width: 400px;
-                    }
-                    h1 {
-                        margin: 0;
-                        color: #172B4D;
-                    }
-                    p {
-                        margin-top: 10px;
-                        color: #5E6C84;
-                        font-size: 15px;
-                    }
-                    .icon {
-                        margin-bottom: 20px;
-                    }
-                    .icon img {
-                        width: 64px;
-                        height: 64px;
-                        object-fit: contain;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="card">
-                    <div class="icon"><img src="https://res.cloudinary.com/dvj3i9gog/image/upload/v1771524965/jira_mit3tt.png"></div>
-                    <h1>Authorized Successfully</h1>
-                    <p>You can now close this window and return to Rocket.Chat.</p>
-                </div>
-            </body>
-            </html>
-        `,
+        const webhookEvent = request.content.webhookEvent;
+        
+        for (const subscriber of subscribers ?? []) {
+            const roomId = subscriber.roomId;
+            const room = await read.getRoomReader().getById(roomId);
+            if (!room) {
+                continue;
+            }
+            
+            if (subscriber.events && subscriber.events.length > 0) {
+                const eventType = this.getEventType(webhookEvent);
+
+                if (!subscriber.events.includes(eventType)) {
+                    continue;
+                }
+            }
+            
+            const message = this.formatMessage(request.content);
+            await sendMessage(read, modify, room, undefined, message);
+        }
+        return { status: 200 };
+    }
+
+    private getEventType(webhookEvent: string): string {
+        const eventMapping: Record<string, string> = {
+            'jira:issue_created': 'issue_created',
+            'jira:issue_updated': 'issue_updated',
+            'jira:issue_deleted': 'issue_deleted',
+            'comment_created': 'comment_created',
+            'comment_updated': 'comment_updated',
+            'comment_deleted': 'comment_deleted',
+            'sprint_started': 'sprint_started',
+            'sprint_closed': 'sprint_closed',
         };
+        
+        return eventMapping[webhookEvent] || webhookEvent;
+    }
+    
+    private formatMessage(content: any): string {
+        const { webhookEvent, issue, comment, user, changelog } = content;
+        
+        const issueKey = issue?.key || 'Unknown';
+        const issueSummary = issue?.fields?.summary || 'No summary';
+        const projectKey = issue?.fields?.project?.key || 'Unknown';
+        const issueUrl = issue?.self ? issue.self.replace('/rest/api/2/issue/' + issueKey, '/browse/' + issueKey) : '';
+        
+        const status = issue?.fields?.status?.name || 'Unknown';
+        const priority = issue?.fields?.priority?.name || 'None';
+        const issueType = issue?.fields?.issuetype?.name || 'Unknown';
+        const assignee = issue?.fields?.assignee?.displayName || 'Unassigned';
+        const reporter = issue?.fields?.reporter?.displayName || 'Unknown';
+        
+        switch (webhookEvent) {
+            
+            case 'jira:issue_updated': {
+                let changeDetails = '';
+                if (changelog && changelog.items) {
+                    const changes: string[] = [];
+                    for (const item of changelog.items) {
+                        if (item.field === 'status') {
+                            changes.push(`*Status:* ${item.fromString || 'None'} → ${item.toString || 'None'}`);
+                        } else if (item.field === 'priority') {
+                            changes.push(`*Priority:* ${item.fromString || 'None'} → ${item.toString || 'None'}`);
+                        } else if (item.field === 'assignee') {
+                            changes.push(`*Assignee:* ${item.fromString || 'Unassigned'} → ${item.toString || 'Unassigned'}`);
+                        } else if (item.field === 'summary') {
+                            changes.push(`*Summary:* Updated`);
+                        } else if (item.field === 'description') {
+                            changes.push(`*Description:* Updated`);
+                        } else {
+                            changes.push(`*${item.field}:* ${item.fromString || 'None'} → ${item.toString || 'None'}`);
+                        }
+                    }
+                    changeDetails = changes.join('\n');
+                }
+                
+                return `📝 *Issue Updated*\n` +
+                       `━━━━━━━━━━━━━━━━\n` +
+                       `*Key:* ${issueKey}\n` +
+                       `*Summary:* ${issueSummary}\n` +
+                       `*Current Status:* ${status}\n` +
+                       `*Current Priority:* ${priority}\n` +
+                       `*Current Assignee:* ${assignee}\n` +
+                       `${changeDetails ? `\n*Changes:*\n${changeDetails}` : ''}\n` +
+                       `${issueUrl ? `*Link:* ${issueUrl}` : ''}`;
+            }
+            
+            
+            case 'comment_created': {
+                const commentAuthor = comment?.author?.displayName || 'Unknown';
+                const commentBody = this.stripHtml(comment?.body || '');
+                return `💬 *New Comment Added*\n` +
+                       `━━━━━━━━━━━━━━━━\n` +
+                       `*Issue:* ${issueKey}\n` +
+                       `*Summary:* ${issueSummary}\n` +
+                       `*Author:* ${commentAuthor}\n` +
+                       `*Comment:*\n${commentBody}\n` +
+                       `${issueUrl ? `*Issue Link:* ${issueUrl}` : ''}`;
+            }
+            
+            case 'comment_updated': {
+                const commentAuthor = comment?.author?.displayName || 'Unknown';
+                const commentBody = this.stripHtml(comment?.body || '');
+                let commentChange = '';
+                if (changelog && changelog.items) {
+                    for (const item of changelog.items) {
+                        if (item.field === 'comment') {
+                            commentChange = `*Edited:* ${item.fromString ? this.stripHtml(item.fromString) + ' → ' : ''}${item.toString ? this.stripHtml(item.toString) : ''}`;
+                        }
+                    }
+                }
+                return `💬 *Comment Updated*\n` +
+                       `━━━━━━━━━━━━━━━━\n` +
+                       `*Issue:* ${issueKey}\n` +
+                       `*Summary:* ${issueSummary}\n` +
+                       `*Author:* ${commentAuthor}\n` +
+                       `${commentChange ? `*Change:*\n${commentChange}\n` : `*New Content:*\n${commentBody}\n`}` +
+                       `${issueUrl ? `*Issue Link:* ${issueUrl}` : ''}`;
+            }
+            
+            case 'comment_deleted': {
+                let deletedBy = 'Unknown';
+                if (user) {
+                    deletedBy = user.displayName || 'Unknown';
+                }
+                return `💬 *Comment Deleted*\n` +
+                       `━━━━━━━━━━━━━━━━\n` +
+                       `*Issue:* ${issueKey}\n` +
+                       `*Summary:* ${issueSummary}\n` +
+                       `*Deleted by:* ${deletedBy}\n` +
+                       `${issueUrl ? `*Issue Link:* ${issueUrl}` : ''}`;
+            }
+            
+            case 'sprint_started':
+                return `🏃 *Sprint Started*\n` +
+                       `━━━━━━━━━━━━━━━━\n` +
+                       `*Sprint:* ${issue?.name || 'Unknown'}\n` +
+                       `*Project:* ${projectKey}`;
+            
+            case 'sprint_closed':
+                return `🏁 *Sprint Closed*\n` +
+                       `━━━━━━━━━━━━━━━━\n` +
+                       `*Sprint:* ${issue?.name || 'Unknown'}\n` +
+                       `*Project:* ${projectKey}`;
+            
+            default:
+                return `📋 *Jira Event:* ${webhookEvent}\n` +
+                       `━━━━━━━━━━━━━━━━\n` +
+                       `*Issue:* ${issueKey}\n` +
+                       `*Summary:* ${issueSummary}\n` +
+                       `*Status:* ${status}\n` +
+                       `${issueUrl ? `*Link:* ${issueUrl}` : ''}`;
+        }
+    }
+
+    private stripHtml(html: string): string {
+        if (!html) return '';
+        return html.replace(/<[^>]*>/g, '').trim();
     }
 }

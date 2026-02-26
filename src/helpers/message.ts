@@ -30,8 +30,8 @@ export async function sendNotification(
 export async function sendMessage(
     read: IRead,
     modify: IModify,
-    sender: IUser,
     room: IRoom,
+    sender?: IUser,
     message?: any,
     blocks?: LayoutBlock[],
 ): Promise<void> {
