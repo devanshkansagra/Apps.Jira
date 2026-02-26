@@ -132,8 +132,8 @@ export class ExecuteViewSubmitHandler {
                     await sendMessage(
                         this.read,
                         this.modify,
-                        user,
                         room as IRoom,
+                        user,
                         message,
                     );
                 } else {
@@ -299,8 +299,8 @@ export class ExecuteViewSubmitHandler {
                     await sendMessage(
                         this.read,
                         this.modify,
-                        user,
                         room as IRoom,
+                        user,
                         `✅ Issue *${issueKey}* has been assigned to *${assignee}* successfully!`,
                     );
                 } else {
