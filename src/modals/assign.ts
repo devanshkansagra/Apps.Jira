@@ -16,9 +16,6 @@ import { sendNotification } from "../helpers/message";
 import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
 import { AuthPersistence } from "../persistance/authPersistence";
 
-/**
- * Creates a modal for assigning an existing unassigned Jira issue to a user
- */
 export async function AssignIssueModal({
     app,
     read,
@@ -55,7 +52,6 @@ export async function AssignIssueModal({
         return {} as IUIKitSurfaceViewParam;
     }
 
-    // Get unassigned issues from Jira
     const issues = await getUnassignedIssues(
         read,
         modify,
@@ -76,7 +72,6 @@ export async function AssignIssueModal({
         return {} as IUIKitSurfaceViewParam;
     }
 
-    // Create issue options for dropdown with safe access
     const issueOptions: Array<{ value: string; text: { type: "plain_text" | "mrkdwn"; text: string } }> = [];
     
     for (const issue of issues) {
@@ -93,7 +88,6 @@ export async function AssignIssueModal({
         }
     }
 
-    // If no valid issues after filtering, return early
     if (issueOptions.length === 0) {
         await sendNotification(
             read,
@@ -105,7 +99,6 @@ export async function AssignIssueModal({
         return {} as IUIKitSurfaceViewParam;
     }
 
-    // Issue Selection (Required)
     blocks.push({
         type: "input",
         label: {
@@ -126,7 +119,6 @@ export async function AssignIssueModal({
         blockId: ElementEnum.JIRA_ASSIGN_ISSUE_BLOCK,
     });
 
-    // Assignee Selection (Required)
     blocks.push({
         type: "input",
         label: {
@@ -178,9 +170,6 @@ export async function AssignIssueModal({
     };
 }
 
-/**
- * Helper function to fetch unassigned issues from Jira API
- */
 async function getUnassignedIssues(
     read: IRead,
     modify: IModify,
@@ -196,7 +185,6 @@ async function getUnassignedIssues(
             return [];
         }
 
-        // JQL query to find unassigned issues
         const jql = "assignee is EMPTY ORDER BY updated DESC";
         
         const response = await http.post(
@@ -215,7 +203,6 @@ async function getUnassignedIssues(
             },
         );
 
-        // Safely access issues array
         const issues = response?.data?.issues;
         if (!issues || !Array.isArray(issues)) {
             console.log("No issues found or invalid response structure");

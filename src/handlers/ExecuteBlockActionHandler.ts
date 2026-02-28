@@ -46,7 +46,6 @@ export class ExecuteBlockActionHandler {
         } = this.context.getInteractionData();
 
         try {
-            // Handle view-issue action (format: view-issue-{issueKey})
             if (actionId && actionId.startsWith("view-issue-")) {
                 const issueKey = actionId.replace("view-issue-", "");
                 
@@ -76,7 +75,6 @@ export class ExecuteBlockActionHandler {
                 };
             }
 
-            // Handle Add Comment action
             if (actionId === ElementEnum.JIRA_ISSUE_DETAILS_ADD_COMMENT_ACTION) {
                 const issueKey = value || "";
                 
@@ -119,10 +117,8 @@ export class ExecuteBlockActionHandler {
                 };
             }
 
-            // Handle Share Issue action
             if (actionId === ElementEnum.JIRA_ISSUE_DETAILS_SHARE_ACTION) {
                 const issueKey = value;
-                // TODO: Implement share issue feature
                 await sendNotification(
                     this.read,
                     this.modify,

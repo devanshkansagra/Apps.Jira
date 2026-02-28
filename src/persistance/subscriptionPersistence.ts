@@ -2,7 +2,10 @@ import {
     IPersistence,
     IPersistenceRead,
 } from "@rocket.chat/apps-engine/definition/accessors";
-import { IChannelSubscription } from "../interfaces/ISubscription";
+import {
+    IChannelSubscription,
+    IUserSubscription,
+} from "../interfaces/ISubscription";
 import {
     RocketChatAssociationModel,
     RocketChatAssociationRecord,
@@ -52,14 +55,61 @@ export class SubscriptionPersistence {
                     RocketChatAssociationModel.MISC,
                     `channel-subscription`,
                 ),
-    
+
                 new RocketChatAssociationRecord(
                     RocketChatAssociationModel.MISC,
                     `project:${projectId}`,
                 ),
             ];
 
-            data = await this.persistenceRead.readByAssociations(association) as IChannelSubscription[];
+            data = (await this.persistenceRead.readByAssociations(
+                association,
+            )) as IChannelSubscription[];
+        } catch (error) {
+            console.log(error);
+        }
+
+        return data;
+    }
+
+    async createUserSubscription(subscription: IUserSubscription) {
+        const association: RocketChatAssociationRecord[] = [
+            new RocketChatAssociationRecord(
+                RocketChatAssociationModel.MISC,
+                `user-subscription`,
+            ),
+
+            new RocketChatAssociationRecord(
+                RocketChatAssociationModel.USER,
+                subscription.userId,
+            ),
+
+            new RocketChatAssociationRecord(
+                RocketChatAssociationModel.MISC,
+                `issue:${subscription.issueId}`,
+            ),
+        ];
+
+        await this.persis.updateByAssociations(association, subscription, true);
+    }
+    async getUserSubscribedToIssue(issueId: string) {
+        let data: IUserSubscription[] | null = null;
+        try {
+            const association: RocketChatAssociationRecord[] = [
+                new RocketChatAssociationRecord(
+                    RocketChatAssociationModel.MISC,
+                    `user-subscription`,
+                ),
+
+                new RocketChatAssociationRecord(
+                    RocketChatAssociationModel.MISC,
+                    `issue:${issueId}`,
+                ),
+            ];
+
+            data = (
+                await this.persistenceRead.readByAssociations(association)
+            ) as IUserSubscription[];
         } catch (error) {
             console.log(error);
         }

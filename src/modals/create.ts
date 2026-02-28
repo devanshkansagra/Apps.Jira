@@ -16,10 +16,6 @@ import { sendNotification } from "../helpers/message";
 import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
 import { AuthPersistence } from "../persistance/authPersistence";
 
-/**
- * Creates a modal for creating Jira entities (Task, Bug, Story, etc.)
- * similar to the CreateFormModal pattern
- */
 export async function CreateJiraEntityModal({
     app,
     read,
@@ -55,7 +51,6 @@ export async function CreateJiraEntityModal({
         return {} as IUIKitSurfaceViewParam;
     }
 
-    // Get Jira projects for the user
     const projects = await getJiraProjects(
         read,
         modify,
@@ -74,7 +69,6 @@ export async function CreateJiraEntityModal({
         }),
     );
 
-    // Common Jira issue types
     const issueTypeOptions = [
         {
             value: "Task",
@@ -118,7 +112,6 @@ export async function CreateJiraEntityModal({
         },
     ];
 
-    // Priority options
     const priorityOptions = [
         {
             value: "Highest",
@@ -162,7 +155,6 @@ export async function CreateJiraEntityModal({
         },
     ];
 
-    // Project Selection
     blocks.push({
         type: "input",
         label: {
@@ -183,7 +175,6 @@ export async function CreateJiraEntityModal({
         blockId: ElementEnum.JIRA_PROJECT_BLOCK,
     });
 
-    // Issue Type Selection
     blocks.push({
         type: "input",
         label: {
@@ -204,7 +195,6 @@ export async function CreateJiraEntityModal({
         blockId: ElementEnum.JIRA_ISSUE_TYPE_BLOCK,
     });
 
-    // Summary (Title)
     blocks.push({
         type: "input",
         label: {
@@ -223,7 +213,6 @@ export async function CreateJiraEntityModal({
         },
     });
 
-    // Description
     blocks.push({
         type: "input",
         label: {
@@ -243,7 +232,6 @@ export async function CreateJiraEntityModal({
         },
     });
 
-    // Priority Selection
     blocks.push({
         type: "input",
         label: {
@@ -264,7 +252,6 @@ export async function CreateJiraEntityModal({
         blockId: ElementEnum.JIRA_PRIORITY_BLOCK,
     });
 
-    // Assignee (optional)
     blocks.push({
         type: "input",
         label: {
@@ -335,9 +322,6 @@ export async function CreateJiraEntityModal({
     };
 }
 
-/**
- * Helper function to fetch Jira projects from the API
- */
 async function getJiraProjects(
     read: IRead,
     modify: IModify,

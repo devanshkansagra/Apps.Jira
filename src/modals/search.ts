@@ -16,10 +16,6 @@ import { sendNotification } from "../helpers/message";
 import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
 import { AuthPersistence } from "../persistance/authPersistence";
 
-/**
- * Creates a modal for searching Jira issues
- * with project (required) and status (optional) filters
- */
 export async function SearchJiraModal({
     app,
     read,
@@ -56,7 +52,6 @@ export async function SearchJiraModal({
         return {} as IUIKitSurfaceViewParam;
     }
 
-    // Get Jira projects for the user
     const projects = await getJiraProjects(
         read,
         modify,
@@ -75,7 +70,6 @@ export async function SearchJiraModal({
         }),
     );
 
-    // Common Jira status options (optional filter)
     const statusOptions = [
         {
             value: "",
@@ -151,7 +145,6 @@ export async function SearchJiraModal({
         },
     ];
 
-    // Project Selection (Required)
     blocks.push({
         type: "input",
         label: {
@@ -172,7 +165,6 @@ export async function SearchJiraModal({
         blockId: ElementEnum.JIRA_SEARCH_PROJECT_BLOCK,
     });
 
-    // Status Selection (Optional)
     blocks.push({
         type: "input",
         label: {
@@ -194,7 +186,6 @@ export async function SearchJiraModal({
         optional: true,
     });
 
-    // Issue Type options
     const issueTypeOptions = [
         {
             value: "",
@@ -262,7 +253,6 @@ export async function SearchJiraModal({
         },
     ];
 
-    // Issue Type Selection (Optional)
     blocks.push({
         type: "input",
         label: {
@@ -284,7 +274,6 @@ export async function SearchJiraModal({
         optional: true,
     });
 
-    // Priority options
     const priorityOptions = [
         {
             value: "",
@@ -336,7 +325,6 @@ export async function SearchJiraModal({
         },
     ];
 
-    // Priority Selection (Optional)
     blocks.push({
         type: "input",
         label: {
@@ -358,7 +346,6 @@ export async function SearchJiraModal({
         optional: true,
     });
 
-    // Assignee Selection (Optional)
     blocks.push({
         type: "input",
         label: {
@@ -411,9 +398,6 @@ export async function SearchJiraModal({
     };
 }
 
-/**
- * Helper function to fetch Jira projects from the API
- */
 async function getJiraProjects(
     read: IRead,
     modify: IModify,

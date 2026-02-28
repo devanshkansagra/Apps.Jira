@@ -16,7 +16,7 @@ import { AssignIssueModal } from "../modals/assign";
 import { AuthPersistence } from "../persistance/authPersistence";
 import { sendMessage, sendNotification } from "../helpers/message";
 import { getCloudURL } from "../helpers/getSettings";
-import { IChannelSubscription } from "../interfaces/ISubscription";
+import { IChannelSubscription, IUserSubscription } from "../interfaces/ISubscription";
 import { SubscriptionPersistence } from "../persistance/subscriptionPersistence";
 
 export class Handler {
@@ -63,7 +63,7 @@ export class Handler {
         if (args && args.length >= 3) {
             const issueType = args[0];
             const projectKey = args[1];
-            const taskSummary = args.slice(2).join(" "); // Join remaining args as summary
+            const taskSummary = args.slice(2).join(" ");
 
             const result = await this.app.sdk.createJiraIssue({
                 http: this.http,
@@ -93,7 +93,6 @@ export class Handler {
             return;
         }
 
-        // If not enough arguments, show the modal (existing behavior)
         const modal = await CreateJiraEntityModal({
             app: this.app,
             read: this.read,
@@ -195,6 +194,10 @@ export class Handler {
 
     public async assign(args: string[]): Promise<void> {
         const authPersistence = new AuthPersistence(this.app);
+        const subscriptionPersistence = new SubscriptionPersistence(
+            this.persistence,
+            this.read.getPersistenceReader(),
+        );
         const token = await authPersistence.getAccessTokenForUser(
             this.sender,
             this.read,
@@ -228,16 +231,17 @@ export class Handler {
 
             let accountId;
             let username;
+            let rcUser: IUser | null = null;
             if (assignee === "me") {
                 accountId = token.token.accountId;
             } else {
-                // Remove @ prefix if present
                 username = assignee.startsWith("@")
                     ? assignee.substring(1)
                     : assignee;
 
-                // Try to find the RocketChat user
-                const rcUser = await this.read
+                    console.log(username);
+
+                rcUser = await this.read
                     .getUserReader()
                     .getByUsername(username);
                 if (!rcUser) {
@@ -250,7 +254,6 @@ export class Handler {
                     );
                 }
 
-                // Get user's email to search in Jira
                 const userEmail = rcUser.emails?.[0]?.address;
                 if (!userEmail) {
                     return await sendNotification(
@@ -262,12 +265,13 @@ export class Handler {
                     );
                 }
 
-                // Search for the user in Jira by email
                 const userSearchResult = await this.app.sdk.searchJiraUser({
                     http: this.http,
                     token: token.token,
                     query: userEmail,
                 });
+
+                
 
                 if (!userSearchResult.success || !userSearchResult.accountId) {
                     return await sendNotification(
@@ -282,29 +286,40 @@ export class Handler {
                 accountId = userSearchResult.accountId;
             }
 
-            const assignIssue = await this.app.sdk.assignIssueToUser({
+            
+            const userSubscription: IUserSubscription = {
+                issueId: issueKey,
+                accountId: accountId,
+                userId: rcUser?.id as string
+            }
+
+            await subscriptionPersistence.createUserSubscription(userSubscription);
+
+            await this.app.sdk.assignIssueToUser({
                 http: this.http,
                 token: token.token,
                 issueKey: issueKey,
                 accountId: accountId,
             });
-            if (assignIssue && !username) {
-                return await sendNotification(
-                    this.read,
-                    this.modify,
-                    this.sender,
-                    this.room,
-                    `Issue is assigned to you`,
-                );
-            } else {
-                return await sendNotification(
-                    this.read,
-                    this.modify,
-                    this.sender,
-                    this.room,
-                    `Issue is assigned to ${username}`,
-                );
-            }
+
+
+            // if (assignIssue && !username) {
+            //     return await sendNotification(
+            //         this.read,
+            //         this.modify,
+            //         this.sender,
+            //         this.room,
+            //         `Issue is assigned to you`,
+            //     );
+            // } else {
+            //     return await sendNotification(
+            //         this.read,
+            //         this.modify,
+            //         this.sender,
+            //         this.room,
+            //         `Issue is assigned to ${username}`,
+            //     );
+            // }
         } else {
             if (!token) {
                 await sendNotification(
@@ -329,7 +344,6 @@ export class Handler {
                 id: this.app.getID(),
             });
 
-            // Only open the modal if it has valid blocks
             if (modal && modal.blocks && modal.blocks.length > 0) {
                 await this.modify.getUiController().openSurfaceView(
                     modal as IUIKitSurfaceViewParam,
