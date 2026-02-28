@@ -70,6 +70,10 @@ export class ExecuteViewSubmitHandler {
                     view.state?.[ElementEnum.JIRA_ASSIGNEE_BLOCK]?.[
                         ElementEnum.JIRA_ASSIGNEE_ACTION
                     ];
+                const deadline =
+                    view.state?.[ElementEnum.JIRA_DEADLINE_BLOCK]?.[
+                        ElementEnum.JIRA_DEADLINE_ACTION
+                    ];
 
                 // If assignee is provided, search for their Jira accountId
                 let jiraAccountId: string = "";
@@ -111,6 +115,7 @@ export class ExecuteViewSubmitHandler {
                     description,
                     priority,
                     assignee: jiraAccountId,
+                    deadline,
                 });
 
                 // Get the room from interaction data
@@ -120,12 +125,16 @@ export class ExecuteViewSubmitHandler {
 
                 // Send notification after issue creation
                 if (res.success && res.issueKey) {
+                    let message = `✅ Jira issue *${res.issueKey}* created successfully!\n\n📋 Summary: ${summary}\n🏷️ Type: ${issueType}\n📁 Project: ${project}`;
+                    if (deadline) {
+                        message += `\n⏰ Deadline: ${deadline}`;
+                    }
                     await sendMessage(
                         this.read,
                         this.modify,
                         user,
                         room as IRoom,
-                        `✅ Jira issue *${res.issueKey}* created successfully!\n\n📋 Summary: ${summary}\n🏷️ Type: ${issueType}\n📁 Project: ${project}`,
+                        message,
                     );
                 } else {
                     await sendNotification(

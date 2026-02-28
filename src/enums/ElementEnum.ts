@@ -44,4 +44,7 @@ export enum ElementEnum {
     // Add Comment Modal
     JIRA_ADD_COMMENT_ACTION = "jira-add-comment-action",
     JIRA_ADD_COMMENT_BLOCK = "jira-add-comment-block",
+    // Deadline
+    JIRA_DEADLINE_ACTION = "jira-deadline-action",
+    JIRA_DEADLINE_BLOCK = "jira-deadline-block",
 }

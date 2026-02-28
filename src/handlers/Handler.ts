@@ -494,6 +494,125 @@ ${description}
         }
     }
 
+    /**
+     * Set deadline for an issue
+     * Command: /jira set deadline <issue_key> <deadline_value>
+     * deadline_value can be: today, tomorrow, or a date in yyyy-mm-dd format
+     */
+    public async setDeadline(args: string[]): Promise<void> {
+        
+        const authPersistence = new AuthPersistence(this.app);
+        const token = await authPersistence.getAccessTokenForUser(
+            this.sender,
+            this.read,
+        );
+
+        if (!token) {
+            await sendNotification(
+                this.read,
+                this.modify,
+                this.sender,
+                this.room,
+                "You are not logged in. Please login to Jira first using /jira login",
+            );
+            return;
+        }
+
+        if (args.length < 2) {
+            await sendNotification(
+                this.read,
+                this.modify,
+                this.sender,
+                this.room,
+                "Usage: /jira set deadline <issue_key> <deadline_value>\nDeadline value: today, tomorrow, or date in yyyy-mm-dd format",
+            );
+            return;
+        }
+
+        // deadline = args[0]
+        const issueKey = args[1];
+        const deadlineValue = args[2].toLowerCase();
+
+        // Parse the deadline value
+        let deadline: string;
+        const today = new Date();
+
+        switch (deadlineValue) {
+            case "today":
+                deadline = today.toISOString().split("T")[0];
+                break;
+            case "tomorrow":
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                deadline = tomorrow.toISOString().split("T")[0];
+                break;
+            default:
+                // Try to parse as date in dd/mm/yyyy format
+                const dateParts = deadlineValue.split("/");
+                if (dateParts.length === 3) {
+                    // Convert from dd/mm/yyyy to yyyy-mm-dd
+                    const day = dateParts[0].padStart(2, "0");
+                    const month = dateParts[1].padStart(2, "0");
+                    const year = dateParts[2];
+                    // Validate the date
+                    const parsedDate = new Date(`${year}-${month}-${day}`);
+                    if (!isNaN(parsedDate.getTime())) {
+                        deadline = `${year}-${month}-${day}`;
+                    } else {
+                        await sendNotification(
+                            this.read,
+                            this.modify,
+                            this.sender,
+                            this.room,
+                            "Invalid date format. Use: today, tomorrow, or dd/mm/yyyy",
+                        );
+                        return;
+                    }
+                } else {
+                    // Try parsing as yyyy-mm-dd directly
+                    const directDate = new Date(deadlineValue);
+                    if (!isNaN(directDate.getTime())) {
+                        deadline = deadlineValue;
+                    } else {
+                        await sendNotification(
+                            this.read,
+                            this.modify,
+                            this.sender,
+                            this.room,
+                            "Invalid date format. Use: today, tomorrow, or dd/mm/yyyy",
+                        );
+                        return;
+                    }
+                }
+        }
+
+        // Update the issue deadline
+        const result = await this.app.sdk.updateIssueDeadline({
+            http: this.http,
+            token: token.token,
+            issueKey: issueKey,
+            deadline: deadline,
+        });
+
+        if (result.success) {
+            await sendMessage(
+                this.read,
+                this.modify,
+                this.sender,
+                this.room,
+                `✅ Deadline set for *${issueKey}*\n\n⏰ New Deadline: ${deadline}`,
+            );
+        } else {
+            await sendNotification(
+                this.read,
+                this.modify,
+                this.sender,
+                this.room,
+                `❌ Failed to set deadline: ${result.error}`,
+            );
+        }
+    }
+
     private formatDescription(description: any): string {
         if (!description) {
             return "No description provided.";
