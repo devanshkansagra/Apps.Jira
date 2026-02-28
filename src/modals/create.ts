@@ -283,6 +283,26 @@ export async function CreateJiraEntityModal({
         },
     });
 
+    // Deadline (optional) - Date Picker
+    blocks.push({
+        type: "input",
+        label: {
+            type: TextTypes.PLAIN_TEXT,
+            text: "Deadline (optional)",
+        },
+        element: {
+            type: "datepicker",
+            placeholder: {
+                type: TextTypes.PLAIN_TEXT,
+                text: "Select a date",
+            },
+            appId: id,
+            blockId: ElementEnum.JIRA_DEADLINE_BLOCK,
+            actionId: ElementEnum.JIRA_DEADLINE_ACTION,
+        },
+        blockId: ElementEnum.JIRA_DEADLINE_BLOCK,
+    });
+
     return {
         type: UIKitSurfaceType.MODAL,
         id: ModalEnum.JIRA_CREATE_MODAL,

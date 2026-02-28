@@ -126,6 +126,7 @@ export class SDK {
         description,
         priority,
         assignee,
+        deadline,
     }: {
         http: IHttp;
         token: any;
@@ -135,6 +136,7 @@ export class SDK {
         description?: string;
         priority?: string;
         assignee?: string;
+        deadline?: string;
     }): Promise<{ success: boolean; issueKey?: string; error?: string }> {
         try {
             const cloudId = token?.cloudId;
@@ -188,6 +190,11 @@ export class SDK {
                 };
             }
 
+            // Add deadline (due date) if provided
+            if (deadline) {
+                issueData.fields.duedate = deadline;
+            }
+
             const response = await http.post(
                 `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue`,
                 {
@@ -207,6 +214,67 @@ export class SDK {
             return { success: false, error: "Failed to create issue" };
         } catch (error: any) {
             console.error("Error creating Jira issue:", error);
+            return {
+                success: false,
+                error:
+                    error?.data?.errorMessages?.[0] ||
+                    error?.message ||
+                    "Unknown error",
+            };
+        }
+    }
+
+    /**
+     * Update an issue's due date (deadline)
+     */
+    public async updateIssueDeadline({
+        http,
+        token,
+        issueKey,
+        deadline,
+    }: {
+        http: IHttp;
+        token: any;
+        issueKey: string;
+        deadline: string;
+    }): Promise<{ success: boolean; error?: string }> {
+        try {
+            const cloudId = token?.cloudId;
+            if (!cloudId) {
+                return { success: false, error: "No cloudId found" };
+            }
+
+            const updateData: any = {
+                fields: {
+                    duedate: deadline,
+                },
+            };
+
+            const response = await http.put(
+                `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${issueKey}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token?.token}`,
+                        Accept: "application/json",
+                        "Content-Type": "application/json",
+                    },
+                    content: JSON.stringify(updateData),
+                },
+            );
+
+            // Jira returns 204 No Content on success
+            if (response?.statusCode === 204 || response?.statusCode === 200) {
+                return { success: true };
+            }
+
+            // If there's no error data, consider it successful
+            if (response?.data && !response?.data?.errorMessages) {
+                return { success: true };
+            }
+
+            return { success: false, error: "Failed to update issue deadline" };
+        } catch (error: any) {
+            console.error("Error updating Jira issue deadline:", error);
             return {
                 success: false,
                 error:
