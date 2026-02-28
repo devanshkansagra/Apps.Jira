@@ -17,9 +17,6 @@ import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
 import { AuthPersistence } from "../persistance/authPersistence";
 import { SDK } from "../core/sdk";
 
-/**
- * Creates a modal for displaying issue details
- */
 export async function IssueDetailsModal({
     app,
     read,
@@ -58,7 +55,6 @@ export async function IssueDetailsModal({
         return {} as IUIKitSurfaceViewParam;
     }
 
-    // Get full issue details using SDK
     const sdk = new SDK(http, app);
     const result = await sdk.getIssue({
         http,
@@ -66,7 +62,6 @@ export async function IssueDetailsModal({
         issueKey,
     });
 
-    // Get comments for the issue
     const commentsResult = await sdk.getComments({
         http,
         token: token.token,
@@ -85,7 +80,6 @@ export async function IssueDetailsModal({
         const issue = result.issue;
         const fields = issue.fields;
         
-        // Extract issue details
         const projectKey = fields?.project?.key || "";
         const projectName = fields?.project?.name || "";
         const summary = fields?.summary || "No summary";
@@ -100,7 +94,6 @@ export async function IssueDetailsModal({
         const created = fields?.created || "";
         const updated = fields?.updated || "";
 
-        // Status emoji mapping
         let statusEmoji = "🔵";
         if (status.toLowerCase() === "done" || status.toLowerCase() === "closed") {
             statusEmoji = "✅";
@@ -110,7 +103,6 @@ export async function IssueDetailsModal({
             statusEmoji = "📋";
         }
 
-        // Priority emoji mapping
         let priorityEmoji = "⚪";
         if (priority.toLowerCase() === "highest" || priority.toLowerCase() === "high") {
             priorityEmoji = "🔴";
@@ -120,7 +112,6 @@ export async function IssueDetailsModal({
             priorityEmoji = "🟢";
         }
 
-        // Header with issue key and summary
         blocks.push({
             type: "section",
             text: {
@@ -133,7 +124,6 @@ export async function IssueDetailsModal({
             type: "divider",
         });
 
-        // Project Information
         blocks.push({
             type: "section",
             text: {
@@ -142,7 +132,6 @@ export async function IssueDetailsModal({
             },
         });
 
-        // Issue Key Information
         blocks.push({
             type: "section",
             text: {
@@ -151,7 +140,6 @@ export async function IssueDetailsModal({
             },
         });
 
-        // Status
         blocks.push({
             type: "section",
             text: {
@@ -160,7 +148,6 @@ export async function IssueDetailsModal({
             },
         });
 
-        // Issue Type
         blocks.push({
             type: "section",
             text: {
@@ -169,7 +156,6 @@ export async function IssueDetailsModal({
             },
         });
 
-        // Priority
         blocks.push({
             type: "section",
             text: {
@@ -178,7 +164,6 @@ export async function IssueDetailsModal({
             },
         });
 
-        // Assignee
         blocks.push({
             type: "section",
             text: {
@@ -187,7 +172,6 @@ export async function IssueDetailsModal({
             },
         });
 
-        // Description (with fallback)
         blocks.push({
             type: "section",
             text: {
@@ -196,7 +180,6 @@ export async function IssueDetailsModal({
             },
         });
 
-        // Created date
         if (created) {
             const createdDate = new Date(created).toLocaleDateString();
             blocks.push({
@@ -208,7 +191,6 @@ export async function IssueDetailsModal({
             });
         }
 
-        // Updated date
         if (updated) {
             const updatedDate = new Date(updated).toLocaleDateString();
             blocks.push({
@@ -224,7 +206,6 @@ export async function IssueDetailsModal({
             type: "divider",
         });
 
-        // Action buttons: Add Comment and Share Issue
         blocks.push({
             type: "actions",
             elements: [
@@ -253,12 +234,10 @@ export async function IssueDetailsModal({
             ],
         });
 
-        // Comments Section
         blocks.push({
             type: "divider",
         });
 
-        // Comments header
         blocks.push({
             type: "section",
             text: {
@@ -267,13 +246,10 @@ export async function IssueDetailsModal({
             },
         });
 
-        // Display comments
         if (commentsResult.success && commentsResult.comments && commentsResult.comments.length > 0) {
-            // Show up to 5 most recent comments
             const recentComments = commentsResult.comments.slice(0, 5);
             
             for (const comment of recentComments) {
-                // Extract comment text from the body
                 const commentBody = comment.body?.content?.[0]?.content?.[0]?.text || 
                                   comment.body || "No comment text";
                 const authorName = comment.author?.displayName || "Unknown";
@@ -288,7 +264,6 @@ export async function IssueDetailsModal({
                 });
             }
 
-            // If there are more than 5 comments, show count
             if (commentsResult.comments.length > 5) {
                 blocks.push({
                     type: "section",
@@ -299,7 +274,6 @@ export async function IssueDetailsModal({
                 });
             }
         } else {
-            // No comments
             blocks.push({
                 type: "section",
                 text: {

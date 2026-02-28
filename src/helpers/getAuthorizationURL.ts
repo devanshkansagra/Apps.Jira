@@ -8,7 +8,7 @@ export async function getAuthorizationURL(read: IRead, user: IUser) {
 
     const baseURL = URLEnum.baseURL;
     const audience = "api.atlassian.com";
-    const redirectURL = URLEnum.callback; // keep this dynamic
+    const redirectURL = URLEnum.callback;
     const responseType = "code";
     const prompt = "consent";
 
@@ -17,13 +17,12 @@ export async function getAuthorizationURL(read: IRead, user: IUser) {
         "write:jira-work",
         "read:jira-user",
         "read:me"
-        // add "offline_access" if you want refresh token
     ].join(" ");
 
     const encodedScope = encodeURIComponent(scope);
     const encodedRedirect = encodeURIComponent(redirectURL);
 
-    const state = user.id; // dynamic user-bound value
+    const state = user.id;
 
     const url =
         `${baseURL}?` +

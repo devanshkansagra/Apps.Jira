@@ -42,7 +42,6 @@ export class ExecuteViewSubmitHandler {
             this.read,
         );
         const sdk = this.app.sdk;
-        // Extract form variables from the modal
 
         switch (view.id) {
             case ModalEnum.JIRA_CREATE_MODAL: {
@@ -75,7 +74,6 @@ export class ExecuteViewSubmitHandler {
                         ElementEnum.JIRA_DEADLINE_ACTION
                     ];
 
-                // If assignee is provided, search for their Jira accountId
                 let jiraAccountId: string = "";
                 if (assignee) {
                     const assignedUser = (
@@ -92,7 +90,6 @@ export class ExecuteViewSubmitHandler {
                     ) {
                         jiraAccountId = userSearchResult.accountId;
                     } else {
-                        // User not found in Jira, send notification and return
                         const room = (await this.read
                             .getRoomReader()
                             .getById("GENERAL")) as IRoom;
@@ -118,12 +115,10 @@ export class ExecuteViewSubmitHandler {
                     deadline,
                 });
 
-                // Get the room from interaction data
                 const room = (await this.read
                     .getRoomReader()
                     .getById("GENERAL")) as IRoom;
 
-                // Send notification after issue creation
                 if (res.success && res.issueKey) {
                     let message = `✅ Jira issue *${res.issueKey}* created successfully!\n\n📋 Summary: ${summary}\n🏷️ Type: ${issueType}\n📁 Project: ${project}`;
                     if (deadline) {
@@ -169,7 +164,6 @@ export class ExecuteViewSubmitHandler {
                         ElementEnum.JIRA_SEARCH_ASSIGNEE_ACTION
                     ];
 
-                // Open the search results modal
                 const searchResultsModal = await SearchResultsModal({
                     app: this.app,
                     read: this.read,
@@ -228,7 +222,6 @@ export class ExecuteViewSubmitHandler {
                     return { success: false };
                 }
 
-                // Get the RocketChat user to search in Jira
                 const rcUser = await this.read
                     .getUserReader()
                     .getByUsername(assignee);
@@ -246,7 +239,6 @@ export class ExecuteViewSubmitHandler {
                     return { success: false };
                 }
 
-                // Get user's email to search in Jira
                 const userEmail = rcUser.emails?.[0]?.address;
                 if (!userEmail) {
                     const room = (await this.read
@@ -262,7 +254,6 @@ export class ExecuteViewSubmitHandler {
                     return { success: false };
                 }
 
-                // Search for the Jira accountId
                 const userSearchResult = await sdk.searchJiraUser({
                     http: this.http,
                     token: token.token,
@@ -283,7 +274,6 @@ export class ExecuteViewSubmitHandler {
                     return { success: false };
                 }
 
-                // Assign the issue to the user
                 const assignResult = await sdk.assignIssueToUser({
                     http: this.http,
                     token: token.token,
@@ -335,7 +325,6 @@ export class ExecuteViewSubmitHandler {
                     break;
                 }
 
-                // Get the issue key from the hidden input field
                 const issueKey =
                     view.state?.["jira-add-comment-issue-key-block"]?.[
                         "jira-add-comment-issue-key"
@@ -352,7 +341,6 @@ export class ExecuteViewSubmitHandler {
                     break;
                 }
 
-                // Add the comment to the Jira issue
                 const commentResult = await sdk.addComment({
                     http: this.http,
                     token: token.token,

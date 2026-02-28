@@ -14,9 +14,6 @@ import { JiraApp } from "../../JiraApp";
 import { IUser } from "@rocket.chat/apps-engine/definition/users";
 import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
 
-/**
- * Creates a modal for adding a comment to a Jira issue
- */
 export async function AddCommentModal({
     app,
     read,
@@ -42,7 +39,6 @@ export async function AddCommentModal({
 }): Promise<IUIKitSurfaceViewParam> {
     const blocks: LayoutBlock[] = [];
 
-    // Header section with issue key
     blocks.push({
         type: "section",
         text: {
@@ -55,7 +51,6 @@ export async function AddCommentModal({
         type: "divider",
     });
 
-    // Hidden input to store issue key
     blocks.push({
         type: "input",
         element: {
@@ -72,7 +67,6 @@ export async function AddCommentModal({
         blockId: "jira-add-comment-issue-key-block",
     });
 
-    // Multi-line input for comment
     blocks.push({
         type: "input",
         element: {

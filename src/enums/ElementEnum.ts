@@ -34,14 +34,12 @@ export enum ElementEnum {
     JIRA_ASSIGN_USER_ACTION = "jira-assign-user-action",
     JIRA_ASSIGN_USER_BLOCK = "jira-assign-user-block",
     JIRA_ASSIGN_ACTION = "jira-assign-action",
-    // Issue Details Modal
     JIRA_ISSUE_DETAILS_VIEW_ACTION = "jira-issue-details-view-action",
     JIRA_ISSUE_DETAILS_VIEW_BLOCK = "jira-issue-details-view-block",
     JIRA_ISSUE_DETAILS_ADD_COMMENT_ACTION = "jira-issue-details-add-comment-action",
     JIRA_ISSUE_DETAILS_ADD_COMMENT_BLOCK = "jira-issue-details-add-comment-block",
     JIRA_ISSUE_DETAILS_SHARE_ACTION = "jira-issue-details-share-action",
     JIRA_ISSUE_DETAILS_SHARE_BLOCK = "jira-issue-details-share-block",
-    // Add Comment Modal
     JIRA_ADD_COMMENT_ACTION = "jira-add-comment-action",
     JIRA_ADD_COMMENT_BLOCK = "jira-add-comment-block",
     // Deadline

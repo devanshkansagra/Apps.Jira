@@ -74,14 +74,11 @@ export class SDK {
             );
 
             const resource = resourcesResponse.data?.[0];
-            // if (!resource) {
-            //     throw new Error("No Jira cloud resource found for this user");
-            // }
 
             const authData = {
                 token: access_token,
                 refreshToken: refresh_token,
-                expiresAt: Date.now() + expires_in * 1000, // store real expiry timestamp
+                expiresAt: Date.now() + expires_in * 1000,
                 scope,
                 accountId: userResponse.data?.account_id,
                 email: userResponse.data?.email,
@@ -98,7 +95,6 @@ export class SDK {
                 persis,
             );
 
-            // 6️⃣ Send success notification
             const room = await read.getRoomReader().getById("GENERAL");
 
             if (room) {
@@ -176,14 +172,12 @@ export class SDK {
                     ],
                 };
             }
-            // Add assignee if provided
             if (assignee) {
                 issueData.fields.assignee = {
                     accountId: assignee,
                 };
             }
 
-            // Add priority if provided
             if (priority) {
                 issueData.fields.priority = {
                     name: priority,
@@ -304,7 +298,6 @@ export class SDK {
                 return { success: false, error: "No cloudId found" };
             }
 
-            // Search for user in Jira by query
             const response = await http.get(
                 `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/user/search?query=${encodeURIComponent(query)}`,
                 {
@@ -316,7 +309,6 @@ export class SDK {
             );
 
             if (response?.data?.length > 0) {
-                // Return the first match's accountId
                 return { success: true, accountId: response.data[0].accountId };
             }
 
@@ -330,9 +322,6 @@ export class SDK {
         }
     }
 
-    /**
-     * Get issues assigned to the current user
-     */
     public async getMyIssues({
         http,
         token,
@@ -346,14 +335,11 @@ export class SDK {
                 return { success: false, error: "No cloudId found" };
             }
 
-            // Get the current user's accountId from token
             const accountId = token?.accountId;
             if (!accountId) {
                 return { success: false, error: "No accountId found in token" };
             }
 
-            // Search for issues assigned to the current user using JQL
-            // Using the new /rest/api/3/search/jql endpoint (POST request)
             const jql = `assignee = "${accountId}" ORDER BY updated DESC`;
             const response = await http.post(
                 `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/search/jql`,
@@ -393,9 +379,6 @@ export class SDK {
         }
     }
 
-    /**
-     * Search for issues by project and optional filters
-     */
     public async searchIssues({
         http,
         token,
@@ -419,7 +402,6 @@ export class SDK {
                 return { success: false, error: "No cloudId found" };
             }
 
-            // Build JQL query based on filters
             let jql = `project = "${projectKey}"`;
             if (status && status.trim() !== "") {
                 jql += ` AND status = "${status}"`;
@@ -474,9 +456,6 @@ export class SDK {
         }
     }
 
-    /**
-     * Get unassigned issues from Jira
-     */
     public async getUnassignedIssues({
         http,
         token,
@@ -490,7 +469,6 @@ export class SDK {
                 return { success: false, error: "No cloudId found" };
             }
 
-            // Search for unassigned issues using JQL
             const jql = "assignee is EMPTY ORDER BY updated DESC";
             const response = await http.post(
                 `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/search/jql`,
@@ -531,9 +509,6 @@ export class SDK {
         }
     }
 
-    /**
-     * Assign an issue to a user in Jira
-     */
     public async assignIssueToUser({
         http,
         token,
@@ -565,7 +540,6 @@ export class SDK {
                 },
             );
 
-            // Jira returns 204 No Content on success
             if (response?.statusCode === 204 || response?.statusCode === 200) {
                 return { success: true };
             }
@@ -583,10 +557,6 @@ export class SDK {
         }
     }
 
-    /**
-     * Check if an issue is assigned to any user
-     * Returns true if the issue has an assignee, false otherwise
-     */
     public async isIssueAssigned({
         http,
         token,
@@ -637,9 +607,6 @@ export class SDK {
         }
     }
 
-    /**
-     * Get full issue details by issue key
-     */
     public async getIssue({
         http,
         token,
@@ -679,9 +646,6 @@ export class SDK {
         }
     }
 
-    /**
-     * Add a comment to a Jira issue
-     */
     public async addComment({
         http,
         token,
@@ -741,9 +705,6 @@ export class SDK {
         }
     }
 
-    /**
-     * Get comments for a Jira issue
-     */
     public async getComments({
         http,
         token,
