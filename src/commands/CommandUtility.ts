@@ -62,6 +62,7 @@ export class CommandUtility implements ICommandUtility {
             assign: (args) => handler.assign(args),
             share: (args) => handler.share(args),
             set: (args) => handler.setDeadline(args),
+            subscribe: (args) => handler.subscribe(args),
         };
 
         await commandMap[command](args);

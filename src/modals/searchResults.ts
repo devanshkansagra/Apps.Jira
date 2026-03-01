@@ -17,9 +17,6 @@ import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
 import { AuthPersistence } from "../persistance/authPersistence";
 import { SDK } from "../core/sdk";
 
-/**
- * Creates a modal for displaying search results
- */
 export async function SearchResultsModal({
     app,
     read,
@@ -66,7 +63,6 @@ export async function SearchResultsModal({
         return {} as IUIKitSurfaceViewParam;
     }
 
-    // Search for issues using SDK
     const sdk = new SDK(http, app);
     const result = await sdk.searchIssues({
         http,
@@ -78,7 +74,6 @@ export async function SearchResultsModal({
         assignee,
     });
 
-    // Build the filter description
     const filters: string[] = [`Project: *${projectKey}*`];
     if (status) filters.push(`Status: *${status}*`);
     if (issueType) filters.push(`Type: *${issueType}*`);
@@ -87,7 +82,6 @@ export async function SearchResultsModal({
     const filterDescription = filters.join(" | ");
 
     if (!result.success || !result.issues || result.issues.length === 0) {
-        // No issues found or error occurred
         blocks.push({
             type: "section",
             text: {
@@ -108,7 +102,6 @@ export async function SearchResultsModal({
             },
         });
     } else {
-        // Display issues in the modal
         blocks.push({
             type: "section",
             text: {
@@ -125,12 +118,10 @@ export async function SearchResultsModal({
             },
         });
 
-        // Add a divider
         blocks.push({
             type: "divider",
         });
 
-        // Add each issue as a section block
         for (const issue of result.issues) {
             const issueKey = issue.key;
             const fields = issue.fields;
@@ -140,7 +131,6 @@ export async function SearchResultsModal({
             const issueType = fields?.issuetype?.name || "Task";
             const assignee = fields?.assignee?.displayName || "Unassigned";
             
-            // Status emoji mapping
             let statusEmoji = "🔵";
             if (issueStatus.toLowerCase() === "done" || issueStatus.toLowerCase() === "closed") {
                 statusEmoji = "✅";
@@ -154,7 +144,6 @@ export async function SearchResultsModal({
                 statusEmoji = "🚫";
             }
 
-            // Priority emoji mapping
             let priorityEmoji = "⚪";
             if (priority.toLowerCase() === "highest" || priority.toLowerCase() === "high") {
                 priorityEmoji = "🔴";
@@ -183,7 +172,6 @@ export async function SearchResultsModal({
                 },
             });
 
-            // Add a divider between issues (except after the last one)
             if (result.issues.indexOf(issue) < result.issues.length - 1) {
                 blocks.push({
                     type: "divider",

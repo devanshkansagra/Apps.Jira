@@ -16,6 +16,8 @@ import { AssignIssueModal } from "../modals/assign";
 import { AuthPersistence } from "../persistance/authPersistence";
 import { sendMessage, sendNotification } from "../helpers/message";
 import { getCloudURL } from "../helpers/getSettings";
+import { IChannelSubscription, IUserSubscription } from "../interfaces/ISubscription";
+import { SubscriptionPersistence } from "../persistance/subscriptionPersistence";
 
 export class Handler {
     constructor(
@@ -61,7 +63,7 @@ export class Handler {
         if (args && args.length >= 3) {
             const issueType = args[0];
             const projectKey = args[1];
-            const taskSummary = args.slice(2).join(" "); // Join remaining args as summary
+            const taskSummary = args.slice(2).join(" ");
 
             const result = await this.app.sdk.createJiraIssue({
                 http: this.http,
@@ -75,8 +77,8 @@ export class Handler {
                 await sendMessage(
                     this.read,
                     this.modify,
-                    this.sender,
                     this.room,
+                    this.sender,
                     `✅ Jira issue *${result.issueKey}* created successfully!\n\n📋 Summary: ${taskSummary}\n🎯 Project: ${projectKey}\n📝 Type: ${issueType}\n👤 Assignee: Unassigned`,
                 );
             } else {
@@ -91,7 +93,6 @@ export class Handler {
             return;
         }
 
-        // If not enough arguments, show the modal (existing behavior)
         const modal = await CreateJiraEntityModal({
             app: this.app,
             read: this.read,
@@ -193,6 +194,10 @@ export class Handler {
 
     public async assign(args: string[]): Promise<void> {
         const authPersistence = new AuthPersistence(this.app);
+        const subscriptionPersistence = new SubscriptionPersistence(
+            this.persistence,
+            this.read.getPersistenceReader(),
+        );
         const token = await authPersistence.getAccessTokenForUser(
             this.sender,
             this.read,
@@ -226,14 +231,19 @@ export class Handler {
 
             let accountId;
             let username;
+            let rcUser: IUser | null = null;
             if (assignee === "me") {
                 accountId = token.token.accountId;
             } else {
-                // Remove @ prefix if present
-                username = assignee.startsWith("@") ? assignee.substring(1) : assignee;
-                
-                // Try to find the RocketChat user
-                const rcUser = await this.read.getUserReader().getByUsername(username);
+                username = assignee.startsWith("@")
+                    ? assignee.substring(1)
+                    : assignee;
+
+                    console.log(username);
+
+                rcUser = await this.read
+                    .getUserReader()
+                    .getByUsername(username);
                 if (!rcUser) {
                     return await sendNotification(
                         this.read,
@@ -243,8 +253,7 @@ export class Handler {
                         `User "${username}" not found in Rocket.Chat`,
                     );
                 }
-                
-                // Get user's email to search in Jira
+
                 const userEmail = rcUser.emails?.[0]?.address;
                 if (!userEmail) {
                     return await sendNotification(
@@ -255,14 +264,15 @@ export class Handler {
                         `No email found for user "${username}" in Rocket.Chat`,
                     );
                 }
-                
-                // Search for the user in Jira by email
+
                 const userSearchResult = await this.app.sdk.searchJiraUser({
                     http: this.http,
                     token: token.token,
                     query: userEmail,
                 });
+
                 
+
                 if (!userSearchResult.success || !userSearchResult.accountId) {
                     return await sendNotification(
                         this.read,
@@ -272,34 +282,44 @@ export class Handler {
                         `User "${username}" not found in Jira. Please check the email address.`,
                     );
                 }
-                
+
                 accountId = userSearchResult.accountId;
             }
 
-            const assignIssue = await this.app.sdk.assignIssueToUser({
+            
+            const userSubscription: IUserSubscription = {
+                issueId: issueKey,
+                accountId: accountId,
+                userId: rcUser?.id as string
+            }
+
+            await subscriptionPersistence.createUserSubscription(userSubscription);
+
+            await this.app.sdk.assignIssueToUser({
                 http: this.http,
                 token: token.token,
                 issueKey: issueKey,
                 accountId: accountId,
             });
-            if (assignIssue&& !username) {
-                return await sendNotification(
-                    this.read,
-                    this.modify,
-                    this.sender,
-                    this.room,
-                    `Issue is assigned to you`,
-                );
-            }
-            else {
-                return await sendNotification(
-                    this.read,
-                    this.modify,
-                    this.sender,
-                    this.room,
-                    `Issue is assigned to ${username}`,
-                );
-            }
+
+
+            // if (assignIssue && !username) {
+            //     return await sendNotification(
+            //         this.read,
+            //         this.modify,
+            //         this.sender,
+            //         this.room,
+            //         `Issue is assigned to you`,
+            //     );
+            // } else {
+            //     return await sendNotification(
+            //         this.read,
+            //         this.modify,
+            //         this.sender,
+            //         this.room,
+            //         `Issue is assigned to ${username}`,
+            //     );
+            // }
         } else {
             if (!token) {
                 await sendNotification(
@@ -324,7 +344,6 @@ export class Handler {
                 id: this.app.getID(),
             });
 
-            // Only open the modal if it has valid blocks
             if (modal && modal.blocks && modal.blocks.length > 0) {
                 await this.modify.getUiController().openSurfaceView(
                     modal as IUIKitSurfaceViewParam,
@@ -409,8 +428,12 @@ export class Handler {
         const project = fields.project?.name || "Unknown";
         const issueType = fields.issuetype?.name || "Unknown";
         const description = this.formatDescription(fields.description);
-        const created = fields.created ? new Date(fields.created).toLocaleDateString() : "Unknown";
-        const updated = fields.updated ? new Date(fields.updated).toLocaleDateString() : "Unknown";
+        const created = fields.created
+            ? new Date(fields.created).toLocaleDateString()
+            : "Unknown";
+        const updated = fields.updated
+            ? new Date(fields.updated).toLocaleDateString()
+            : "Unknown";
 
         const issueUrl = await this.getIssueUrl(issue.key);
 
@@ -433,7 +456,9 @@ ${description}
 
         if (isUser) {
             const username = target.substring(1);
-            const targetUser = await this.read.getUserReader().getByUsername(username);
+            const targetUser = await this.read
+                .getUserReader()
+                .getByUsername(username);
 
             if (!targetUser) {
                 await sendNotification(
@@ -462,8 +487,10 @@ ${description}
                 `✅ Issue ${issue.key} shared successfully with @${username}`,
             );
         } else if (isChannel) {
-            const channelName = target.substring(1); 
-            const targetRoom = await this.read.getRoomReader().getByName(channelName);
+            const channelName = target.substring(1);
+            const targetRoom = await this.read
+                .getRoomReader()
+                .getByName(channelName);
 
             if (!targetRoom) {
                 await sendNotification(
@@ -479,8 +506,8 @@ ${description}
             await sendMessage(
                 this.read,
                 this.modify,
-                this.sender,
                 targetRoom,
+                this.sender,
                 issueMessage,
             );
 
@@ -500,7 +527,6 @@ ${description}
      * deadline_value can be: today, tomorrow, or a date in yyyy-mm-dd format
      */
     public async setDeadline(args: string[]): Promise<void> {
-        
         const authPersistence = new AuthPersistence(this.app);
         const token = await authPersistence.getAccessTokenForUser(
             this.sender,
@@ -598,8 +624,8 @@ ${description}
             await sendMessage(
                 this.read,
                 this.modify,
-                this.sender,
                 this.room,
+                this.sender,
                 `✅ Deadline set for *${issueKey}*\n\n⏰ New Deadline: ${deadline}`,
             );
         } else {
@@ -610,6 +636,36 @@ ${description}
                 this.room,
                 `❌ Failed to set deadline: ${result.error}`,
             );
+        }
+    }
+    public async subscribe(args: string[]) {
+        const subscriptionPersistence = new SubscriptionPersistence(
+            this.persistence,
+            this.read.getPersistenceReader(),
+        );
+        if (args.length >= 1) {
+            if (args[0] == "all") {
+                const roomId = this.room.id;
+
+                const projectKey = args[1];
+
+                const subscription: IChannelSubscription = {
+                    projectId: projectKey,
+                    roomId,
+                };
+
+                await subscriptionPersistence.createChannelSubscription(
+                    subscription,
+                );
+
+                await sendMessage(
+                    this.read,
+                    this.modify,
+                    this.room,
+                    this.sender,
+                    `This room is now subscribed to recieve all events from ${projectKey} project`,
+                );
+            }
         }
     }
 

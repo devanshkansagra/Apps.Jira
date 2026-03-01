@@ -17,9 +17,6 @@ import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
 import { AuthPersistence } from "../persistance/authPersistence";
 import { SDK } from "../core/sdk";
 
-/**
- * Creates a modal for displaying issues assigned to the logged-in user
- */
 export async function MyIssuesModal({
     app,
     read,
@@ -56,7 +53,6 @@ export async function MyIssuesModal({
         return {} as IUIKitSurfaceViewParam;
     }
 
-    // Get issues assigned to the user
     const sdk = new SDK(http, app);
     const result = await sdk.getMyIssues({
         http,
@@ -64,7 +60,6 @@ export async function MyIssuesModal({
     });
 
     if (!result.success || !result.issues || result.issues.length === 0) {
-        // No issues found or error occurred
         blocks.push({
             type: "section",
             text: {
@@ -75,7 +70,6 @@ export async function MyIssuesModal({
             },
         });
     } else {
-        // Display issues in the modal
         blocks.push({
             type: "section",
             text: {
@@ -84,12 +78,10 @@ export async function MyIssuesModal({
             },
         });
 
-        // Add a divider
         blocks.push({
             type: "divider",
         });
 
-        // Add each issue as a section block
         for (const issue of result.issues) {
             const issueKey = issue.key;
             const fields = issue.fields;
@@ -99,7 +91,6 @@ export async function MyIssuesModal({
             const issueType = fields?.issuetype?.name || "Task";
             const projectName = fields?.project?.name || "";
             
-            // Status emoji mapping
             let statusEmoji = "🔵";
             if (status.toLowerCase() === "done" || status.toLowerCase() === "closed") {
                 statusEmoji = "✅";
@@ -109,7 +100,6 @@ export async function MyIssuesModal({
                 statusEmoji = "📋";
             }
 
-            // Priority emoji mapping
             let priorityEmoji = "⚪";
             if (priority.toLowerCase() === "highest" || priority.toLowerCase() === "high") {
                 priorityEmoji = "🔴";
@@ -138,7 +128,6 @@ export async function MyIssuesModal({
                 },
             });
 
-            // Add a divider between issues (except after the last one)
             if (result.issues.indexOf(issue) < result.issues.length - 1) {
                 blocks.push({
                     type: "divider",

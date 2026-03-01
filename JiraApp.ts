@@ -12,12 +12,13 @@ import { App } from "@rocket.chat/apps-engine/definition/App";
 import { IAppInfo } from "@rocket.chat/apps-engine/definition/metadata";
 import { JiraCommand } from "./src/commands/JiraCommand";
 import { settings } from "./src/settings/settings";
-import { WebhookEndPoint } from "./src/api/webhook";
+import { CallbackEndpoint } from "./src/api/callback";
 import { ApiVisibility, ApiSecurity } from "@rocket.chat/apps-engine/definition/api";
 import { UIKitBlockInteractionContext, IUIKitResponse, UIKitViewSubmitInteractionContext } from "@rocket.chat/apps-engine/definition/uikit";
 import { ExecuteBlockActionHandler } from "./src/handlers/ExecuteBlockActionHandler";
 import { SDK } from "./src/core/sdk";
 import { ExecuteViewSubmitHandler } from "./src/handlers/ExecuteViewSubmitHandler";
+import { WebhookEndpoint } from "./src/api/webhook";
 
 export class JiraApp extends App {
     public sdk: SDK;
@@ -42,7 +43,12 @@ export class JiraApp extends App {
         await configurationExtend.api.provideApi({
             visibility: ApiVisibility.PUBLIC,
             security: ApiSecurity.UNSECURE,
-            endpoints: [new WebhookEndPoint(this)],
+            endpoints: [new CallbackEndpoint(this)],
+        });
+        await configurationExtend.api.provideApi({
+            visibility: ApiVisibility.PUBLIC,
+            security: ApiSecurity.UNSECURE,
+            endpoints: [new WebhookEndpoint(this)],
         });
 
         this.sdk = new SDK(this.getAccessors().http, this);
