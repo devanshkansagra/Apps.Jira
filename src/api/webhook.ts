@@ -41,7 +41,10 @@ export class WebhookEndpoint extends ApiEndpoint {
 
         const event = payload.webhookEvent;
         try {
-            await eventHandler.handleEvent(event, payload);
+
+            if(event === "jira:issue_updated") {
+                await eventHandler.handleIssueUpdateEvent(payload);
+            }
         } catch (error) {
             console.error("Error processing webhook event:", error);
             return { status: 500 };
