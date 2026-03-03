@@ -2,13 +2,15 @@ import { IRead } from "@rocket.chat/apps-engine/definition/accessors";
 import { IUser } from "@rocket.chat/apps-engine/definition/users";
 import { getCredentials } from "./getSettings";
 import { URLEnum } from "../enums/URLEnum";
+import { JiraApp } from "../../JiraApp";
+import { getCallbackURL } from "./getEndpointURLS";
 
-export async function getAuthorizationURL(read: IRead, user: IUser) {
+export async function getAuthorizationURL(app: JiraApp, read: IRead, user: IUser) {
     const { clientId } = await getCredentials(read);
 
     const baseURL = URLEnum.baseURL;
     const audience = "api.atlassian.com";
-    const redirectURL = URLEnum.callback;
+    const redirectURL = await getCallbackURL(app);
     const responseType = "code";
     const prompt = "consent";
 
@@ -16,7 +18,8 @@ export async function getAuthorizationURL(read: IRead, user: IUser) {
         "read:jira-work",
         "write:jira-work",
         "read:jira-user",
-        "read:me"
+        "read:me",
+        "manage:jira-webhook"
     ].join(" ");
 
     const encodedScope = encodeURIComponent(scope);

@@ -61,7 +61,7 @@ export class CommandUtility implements ICommandUtility {
             search: (args) => handler.search(args),
             assign: (args) => handler.assign(args),
             share: (args) => handler.share(args),
-            set: (args) => handler.setDeadline(args),
+            set: (args) => handler.setCommands(args),
             subscribe: (args) => handler.subscribe(args),
         };
 

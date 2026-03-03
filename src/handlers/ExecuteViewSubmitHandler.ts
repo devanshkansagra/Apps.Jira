@@ -18,6 +18,7 @@ import { AuthPersistence } from "../persistance/authPersistence";
 import { sendMessage, sendNotification } from "../helpers/message";
 import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
 import { SearchResultsModal } from "../modals/searchResults";
+import { getWebhookUrl } from "../helpers/getEndpointURLS";
 
 export class ExecuteViewSubmitHandler {
     private context: UIKitViewSubmitInteractionContext;
@@ -363,6 +364,63 @@ export class ExecuteViewSubmitHandler {
                         user,
                         room as IRoom,
                         `❌ Failed to add comment: ${commentResult.error}`,
+                    );
+                }
+                break;
+            }
+            case ModalEnum.JIRA_SUBSCRIBE_MODAL: {
+                const project =
+                    view.state?.[ElementEnum.JIRA_SUBSCRIBE_PROJECT_BLOCK]?.[
+                        ElementEnum.JIRA_SUBSCRIBE_PROJECT_ACTION
+                    ];
+                const events =
+                    view.state?.[ElementEnum.JIRA_SUBSCRIBE_EVENTS_BLOCK]?.[
+                        ElementEnum.JIRA_SUBSCRIBE_EVENTS_ACTION
+                    ];
+
+                const room = (await this.read
+                    .getRoomReader()
+                    .getById(
+                        this.context.getInteractionData().room?.id as string,
+                    )) as IRoom;
+
+
+                if (!project || !events || events.length === 0) {
+                    await sendNotification(
+                        this.read,
+                        this.modify,
+                        user,
+                        room as IRoom,
+                        "❌ Please select a project and at least one event to subscribe.",
+                    );
+                    return { success: false };
+                }
+
+                const webhookUrl = await getWebhookUrl(this.app);
+
+                const createWebhookResult = await sdk.createWebhook({
+                    http: this.http,
+                    token: token.token,
+                    webhookUrl,
+                    events,
+                    projectKey: project,
+                });
+
+                if (createWebhookResult.success) {
+                    await sendMessage(
+                        this.read,
+                        this.modify,
+                        room as IRoom,
+                        user,
+                        `✅ Successfully subscribed to Jira events for project *${project}*!\n📋 Events: ${events.join(", ")}`,
+                    );
+                } else {
+                    await sendNotification(
+                        this.read,
+                        this.modify,
+                        user,
+                        room as IRoom,
+                        `❌ Failed to create webhook: ${createWebhookResult.error}`,
                     );
                 }
                 break;

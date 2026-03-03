@@ -12,6 +12,7 @@ import { sendNotification } from "../helpers/message";
 import { AuthPersistence } from "../persistance/authPersistence";
 import { read } from "fs";
 import { URLEnum } from "../enums/URLEnum";
+import { getCallbackURL } from "../helpers/getEndpointURLS";
 
 export class SDK {
     private readonly http: IHttp;
@@ -33,7 +34,7 @@ export class SDK {
     ) {
         const { clientId, clientSecret } = await getCredentials(read);
 
-        const redirectURL = URLEnum.callback;
+        const redirectURL = await getCallbackURL(this.app);
 
         try {
             const tokenResponse = await http.post(
@@ -269,6 +270,97 @@ export class SDK {
             return { success: false, error: "Failed to update issue deadline" };
         } catch (error: any) {
             console.error("Error updating Jira issue deadline:", error);
+            return {
+                success: false,
+                error:
+                    error?.data?.errorMessages?.[0] ||
+                    error?.message ||
+                    "Unknown error",
+            };
+        }
+    }
+
+    /**
+     * Update an issue's status by transitioning it to a new status
+     * Uses Jira's transitions API
+     * Accepts status name like "To Do", "In Progress", "Done"
+     */
+    public async updateStatus({
+        http,
+        token,
+        issueKey,
+        statusName,
+    }: {
+        http: IHttp;
+        token: any;
+        issueKey: string;
+        statusName: string;
+    }): Promise<{ success: boolean; error?: string }> {
+        try {
+            const cloudId = token?.cloudId;
+            if (!cloudId) {
+                return { success: false, error: "No cloudId found" };
+            }
+
+            // First, get available transitions for this issue
+            const transitionsResponse = await http.get(
+                `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${issueKey}/transitions`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token?.token}`,
+                        Accept: "application/json",
+                    },
+                },
+            );
+
+            const transitions = transitionsResponse?.data?.transitions || [];
+
+            // Find the transition that matches the status name (case-insensitive)
+            const matchedTransition = transitions.find(
+                (t: any) => t.name.toLowerCase() === statusName.toLowerCase(),
+            );
+
+            if (!matchedTransition) {
+                const availableStatuses = transitions
+                    .map((t: any) => t.name)
+                    .join(", ");
+                return {
+                    success: false,
+                    error: `Status "${statusName}" not available. Available statuses: ${availableStatuses}`,
+                };
+            }
+
+            const transitionData = {
+                transition: {
+                    id: matchedTransition.id,
+                },
+            };
+
+            const response = await http.post(
+                `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${issueKey}/transitions`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token?.token}`,
+                        Accept: "application/json",
+                        "Content-Type": "application/json",
+                    },
+                    content: JSON.stringify(transitionData),
+                },
+            );
+
+            // Jira returns 204 No Content on success
+            if (response?.statusCode === 204 || response?.statusCode === 200) {
+                return { success: true };
+            }
+
+            // If there's no error data, consider it successful
+            if (response?.data && !response?.data?.errorMessages) {
+                return { success: true };
+            }
+
+            return { success: false, error: "Failed to update issue status" };
+        } catch (error: any) {
+            console.error("Error updating Jira issue status:", error);
             return {
                 success: false,
                 error:
@@ -740,6 +832,159 @@ export class SDK {
             return {
                 success: false,
                 error: error?.message || "Failed to fetch comments",
+            };
+        }
+    }
+
+    public async createWebhook({
+        http,
+        token,
+        webhookUrl,
+        events,
+        projectKey
+    }: {
+        http: IHttp;
+        token: any;
+        webhookUrl: string;
+        events?: string[];
+        projectKey: string;
+    }): Promise<{ success: boolean; webhookId?: string; error?: string }> {
+        try {
+
+            const cloudId = token?.cloudId;
+            if (!cloudId) return { success: false, error: "No cloudId found" };
+
+            const expirationDate = Date.now() + 30 * 24 * 60 * 60 * 1000;
+
+            // 2. Correct Schema: Everything goes inside the 'webhooks' array
+            const webhookData = {
+                url: webhookUrl,
+                webhooks: [
+                    {
+                        events:events,
+                        jqlFilter: `project = ${projectKey}`,
+                        expirationDate: expirationDate,
+                    },
+                ],
+            };
+
+
+            const response = await http.post(
+                `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/webhook`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token.token}`,
+                        Accept: "application/json",
+                        "Content-Type": "application/json",
+                    },
+                    content: JSON.stringify(webhookData),
+                },
+            );
+
+            if (response?.data?.webhookRegistrationResult) {
+                const firstResult = response.data.webhookRegistrationResult[0];
+                if (firstResult.createdWebhookId) {
+                    return {
+                        success: true,
+                        webhookId: firstResult.createdWebhookId,
+                    };
+                }
+            }
+
+            return {
+                success: false,
+                error: `HTTP ${response.statusCode}: ${response.content || "Unknown Error"}`,
+            };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    public async deleteWebhook({
+        http,
+        token,
+        webhookId,
+    }: {
+        http: IHttp;
+        token: any;
+        webhookId: string;
+    }): Promise<{ success: boolean; error?: string }> {
+        try {
+            const cloudId = token?.cloudId;
+            if (!cloudId) {
+                return { success: false, error: "No cloudId found" };
+            }
+
+            const response = await http.del(
+                `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/webhook/${webhookId}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token?.token}`,
+                        Accept: "application/json",
+                    },
+                },
+            );
+
+            if (
+                response?.statusCode === 202 ||
+                response?.statusCode === 204 ||
+                response?.statusCode === 200
+            ) {
+                return { success: true };
+            }
+
+            return { success: false, error: "Failed to delete webhook" };
+        } catch (error: any) {
+            console.error("Error deleting Jira webhook:", error);
+            return {
+                success: false,
+                error:
+                    error?.data?.errorMessages?.[0] ||
+                    error?.message ||
+                    "Failed to delete webhook",
+            };
+        }
+    }
+
+    /**
+     * List all registered webhooks for the Jira instance
+     */
+    public async listWebhooks({
+        http,
+        token,
+    }: {
+        http: IHttp;
+        token: any;
+    }): Promise<{ success: boolean; webhooks?: any[]; error?: string }> {
+        try {
+            const cloudId = token?.cloudId;
+            if (!cloudId) {
+                return { success: false, error: "No cloudId found" };
+            }
+
+            const response = await http.get(
+                `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/webhook`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token?.token}`,
+                        Accept: "application/json",
+                    },
+                },
+            );
+
+            if (response?.data?.webhookRegistrationResult) {
+                return {
+                    success: true,
+                    webhooks: response.data.webhookRegistrationResult,
+                };
+            }
+
+            return { success: false, error: "Failed to list webhooks" };
+        } catch (error: any) {
+            console.error("Error listing Jira webhooks:", error);
+            return {
+                success: false,
+                error: error?.message || "Failed to list webhooks",
             };
         }
     }
