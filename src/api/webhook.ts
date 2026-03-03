@@ -29,6 +29,7 @@ export class WebhookEndpoint extends ApiEndpoint {
         http: IHttp,
         persis: IPersistence,
     ): Promise<IApiResponse> {
+
         const payload = request.content as IWebhookPayload;
 
         const eventHandler = new EventHandler(

@@ -21,7 +21,7 @@ export async function authorize(
     persistence: IPersistence,
 ) {
 
-    const url = await getAuthorizationURL(read, user);
+    const url = await getAuthorizationURL(app, read, user);
     const blocks: LayoutBlock[] = [
         {
             type: "section",

@@ -16,8 +16,14 @@ import { AssignIssueModal } from "../modals/assign";
 import { AuthPersistence } from "../persistance/authPersistence";
 import { sendMessage, sendNotification } from "../helpers/message";
 import { getCloudURL } from "../helpers/getSettings";
-import { IChannelSubscription, IUserSubscription } from "../interfaces/ISubscription";
+import { URLEnum } from "../enums/URLEnum";
+import {
+    IChannelSubscription,
+    IUserSubscription,
+} from "../interfaces/ISubscription";
 import { SubscriptionPersistence } from "../persistance/subscriptionPersistence";
+import { getWebhookUrl } from "../helpers/getEndpointURLS";
+import { SubscribeModal } from "../modals/subscribeModal";
 
 export class Handler {
     constructor(
@@ -239,7 +245,7 @@ export class Handler {
                     ? assignee.substring(1)
                     : assignee;
 
-                    console.log(username);
+                console.log(username);
 
                 rcUser = await this.read
                     .getUserReader()
@@ -271,8 +277,6 @@ export class Handler {
                     query: userEmail,
                 });
 
-                
-
                 if (!userSearchResult.success || !userSearchResult.accountId) {
                     return await sendNotification(
                         this.read,
@@ -286,14 +290,15 @@ export class Handler {
                 accountId = userSearchResult.accountId;
             }
 
-            
             const userSubscription: IUserSubscription = {
                 issueId: issueKey,
                 accountId: accountId,
-                userId: rcUser?.id as string
-            }
+                userId: rcUser?.id as string,
+            };
 
-            await subscriptionPersistence.createUserSubscription(userSubscription);
+            await subscriptionPersistence.createUserSubscription(
+                userSubscription,
+            );
 
             await this.app.sdk.assignIssueToUser({
                 http: this.http,
@@ -301,7 +306,6 @@ export class Handler {
                 issueKey: issueKey,
                 accountId: accountId,
             });
-
 
             // if (assignIssue && !username) {
             //     return await sendNotification(
@@ -526,7 +530,7 @@ ${description}
      * Command: /jira set deadline <issue_key> <deadline_value>
      * deadline_value can be: today, tomorrow, or a date in yyyy-mm-dd format
      */
-    public async setDeadline(args: string[]): Promise<void> {
+    public async setCommands(args: string[]): Promise<void> {
         const authPersistence = new AuthPersistence(this.app);
         const token = await authPersistence.getAccessTokenForUser(
             this.sender,
@@ -555,117 +559,214 @@ ${description}
             return;
         }
 
-        // deadline = args[0]
-        const issueKey = args[1];
-        const deadlineValue = args[2].toLowerCase();
+        if (args[0] === "deadline") {
+            const issueKey = args[1];
+            const deadlineValue = args[2].toLowerCase();
+
+            let deadline: string;
+            const today = new Date();
+
+            switch (deadlineValue) {
+                case "today":
+                    deadline = today.toISOString().split("T")[0];
+                    break;
+                case "tomorrow":
+                    const tomorrow = new Date(today);
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    deadline = tomorrow.toISOString().split("T")[0];
+                    break;
+                default:
+                    // Try to parse as date in dd/mm/yyyy format
+                    const dateParts = deadlineValue.split("/");
+                    if (dateParts.length === 3) {
+                        // Convert from dd/mm/yyyy to yyyy-mm-dd
+                        const day = dateParts[0].padStart(2, "0");
+                        const month = dateParts[1].padStart(2, "0");
+                        const year = dateParts[2];
+                        // Validate the date
+                        const parsedDate = new Date(`${year}-${month}-${day}`);
+                        if (!isNaN(parsedDate.getTime())) {
+                            deadline = `${year}-${month}-${day}`;
+                        } else {
+                            await sendNotification(
+                                this.read,
+                                this.modify,
+                                this.sender,
+                                this.room,
+                                "Invalid date format. Use: today, tomorrow, or dd/mm/yyyy",
+                            );
+                            return;
+                        }
+                    } else {
+                        // Try parsing as yyyy-mm-dd directly
+                        const directDate = new Date(deadlineValue);
+                        if (!isNaN(directDate.getTime())) {
+                            deadline = deadlineValue;
+                        } else {
+                            await sendNotification(
+                                this.read,
+                                this.modify,
+                                this.sender,
+                                this.room,
+                                "Invalid date format. Use: today, tomorrow, or dd/mm/yyyy",
+                            );
+                            return;
+                        }
+                    }
+            }
+
+            // Update the issue deadline
+            const result = await this.app.sdk.updateIssueDeadline({
+                http: this.http,
+                token: token.token,
+                issueKey: issueKey,
+                deadline: deadline,
+            });
+
+            if (result.success) {
+                await sendMessage(
+                    this.read,
+                    this.modify,
+                    this.room,
+                    this.sender,
+                    `✅ Deadline set for *${issueKey}*\n\n⏰ New Deadline: ${deadline}`,
+                );
+            } else {
+                await sendNotification(
+                    this.read,
+                    this.modify,
+                    this.sender,
+                    this.room,
+                    `❌ Failed to set deadline: ${result.error}`,
+                );
+            }
+        }
+
+        if (args[0] === "status") {
+            const issueKey = args[1];
+            const statusName = args[2];
+
+            const updateStatus = await this.app.sdk.updateStatus({
+                http: this.http,
+                token: token.token,
+                issueKey: issueKey,
+                statusName: statusName,
+            });
+
+            if (updateStatus.success) {
+                await sendMessage(
+                    this.read,
+                    this.modify,
+                    this.room,
+                    this.sender,
+                    `✅ Status updated for *${issueKey}* to *${statusName}*`,
+                );
+            } else {
+                await sendNotification(
+                    this.read,
+                    this.modify,
+                    this.sender,
+                    this.room,
+                    `❌ Failed to update status: ${updateStatus.error}`,
+                );
+            }
+        }
 
         // Parse the deadline value
-        let deadline: string;
-        const today = new Date();
-
-        switch (deadlineValue) {
-            case "today":
-                deadline = today.toISOString().split("T")[0];
-                break;
-            case "tomorrow":
-                const tomorrow = new Date(today);
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                deadline = tomorrow.toISOString().split("T")[0];
-                break;
-            default:
-                // Try to parse as date in dd/mm/yyyy format
-                const dateParts = deadlineValue.split("/");
-                if (dateParts.length === 3) {
-                    // Convert from dd/mm/yyyy to yyyy-mm-dd
-                    const day = dateParts[0].padStart(2, "0");
-                    const month = dateParts[1].padStart(2, "0");
-                    const year = dateParts[2];
-                    // Validate the date
-                    const parsedDate = new Date(`${year}-${month}-${day}`);
-                    if (!isNaN(parsedDate.getTime())) {
-                        deadline = `${year}-${month}-${day}`;
-                    } else {
-                        await sendNotification(
-                            this.read,
-                            this.modify,
-                            this.sender,
-                            this.room,
-                            "Invalid date format. Use: today, tomorrow, or dd/mm/yyyy",
-                        );
-                        return;
-                    }
-                } else {
-                    // Try parsing as yyyy-mm-dd directly
-                    const directDate = new Date(deadlineValue);
-                    if (!isNaN(directDate.getTime())) {
-                        deadline = deadlineValue;
-                    } else {
-                        await sendNotification(
-                            this.read,
-                            this.modify,
-                            this.sender,
-                            this.room,
-                            "Invalid date format. Use: today, tomorrow, or dd/mm/yyyy",
-                        );
-                        return;
-                    }
-                }
-        }
-
-        // Update the issue deadline
-        const result = await this.app.sdk.updateIssueDeadline({
-            http: this.http,
-            token: token.token,
-            issueKey: issueKey,
-            deadline: deadline,
-        });
-
-        if (result.success) {
-            await sendMessage(
-                this.read,
-                this.modify,
-                this.room,
-                this.sender,
-                `✅ Deadline set for *${issueKey}*\n\n⏰ New Deadline: ${deadline}`,
-            );
-        } else {
-            await sendNotification(
-                this.read,
-                this.modify,
-                this.sender,
-                this.room,
-                `❌ Failed to set deadline: ${result.error}`,
-            );
-        }
     }
     public async subscribe(args: string[]) {
         const subscriptionPersistence = new SubscriptionPersistence(
             this.persistence,
             this.read.getPersistenceReader(),
         );
-        if (args.length >= 1) {
-            if (args[0] == "all") {
-                const roomId = this.room.id;
+        const authPersistence = new AuthPersistence(this.app);
+        const token = await authPersistence.getAccessTokenForUser(
+            this.sender,
+            this.read,
+        );
 
-                const projectKey = args[1];
+        const webhookUrl = await getWebhookUrl(this.app);
 
-                const subscription: IChannelSubscription = {
-                    projectId: projectKey,
-                    roomId,
-                };
+        if (!token) {
+            await sendNotification(
+                this.read,
+                this.modify,
+                this.sender,
+                this.room,
+                "You are not logged in. Please login to Jira first using /jira login",
+            );
+            return;
+        }
 
-                await subscriptionPersistence.createChannelSubscription(
-                    subscription,
-                );
+        if (args[0] === "all") {
+            const events = [
+                "jira:issue_created",
+                "jira:issue_updated",
+                "jira:issue_deleted",
+                "comment_created",
+                "comment_updated",
+                "comment_deleted",
+            ];
 
-                await sendMessage(
+            const roomId = this.room.id;
+            const projectKey = args[1];
+
+            const webhookResult = await this.app.sdk.createWebhook({
+                http: this.http,
+                token: token.token,
+                webhookUrl: webhookUrl,
+                events: events,
+                projectKey: projectKey,
+            });
+
+            if (!webhookResult.success) {
+                await sendNotification(
                     this.read,
                     this.modify,
-                    this.room,
                     this.sender,
-                    `This room is now subscribed to recieve all events from ${projectKey} project`,
+                    this.room,
+                    `❌ Failed to create webhook: ${webhookResult.error}`,
                 );
+                return;
             }
+
+            const subscription: IChannelSubscription = {
+                projectId: projectKey,
+                roomId,
+                webhookId: webhookResult.webhookId,
+            };
+
+            await subscriptionPersistence.createChannelSubscription(
+                subscription,
+            );
+
+            await sendMessage(
+                this.read,
+                this.modify,
+                this.room,
+                this.sender,
+                `✅ This room is now subscribed to receive all events from ${projectKey} project`,
+            );
+        } else {
+            const modal = await SubscribeModal({
+                app: this.app,
+                read: this.read,
+                modify: this.modify,
+                http: this.http,
+                sender: this.sender,
+                room: this.room,
+                persis: this.persistence,
+                triggerId: this.triggerId,
+                id: this.app.getID(),
+            });
+
+            await this.modify
+                .getUiController()
+                .openSurfaceView(
+                    modal,
+                    { triggerId: this.triggerId },
+                    this.sender,
+                );
         }
     }
 

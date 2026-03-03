@@ -42,7 +42,10 @@ export enum ElementEnum {
     JIRA_ISSUE_DETAILS_SHARE_BLOCK = "jira-issue-details-share-block",
     JIRA_ADD_COMMENT_ACTION = "jira-add-comment-action",
     JIRA_ADD_COMMENT_BLOCK = "jira-add-comment-block",
-    // Deadline
     JIRA_DEADLINE_ACTION = "jira-deadline-action",
     JIRA_DEADLINE_BLOCK = "jira-deadline-block",
+    JIRA_SUBSCRIBE_PROJECT_ACTION = "jira-subscribe-project-action",
+    JIRA_SUBSCRIBE_PROJECT_BLOCK = "jira-subscribe-project-block",
+    JIRA_SUBSCRIBE_EVENTS_ACTION = "jira-subscribe-events-action",
+    JIRA_SUBSCRIBE_EVENTS_BLOCK = "jira-subscribe-events-block",
 }

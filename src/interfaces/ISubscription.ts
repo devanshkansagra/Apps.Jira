@@ -1,7 +1,8 @@
 export interface IChannelSubscription {
     projectId: string,
     roomId: string;
-    events?: string[]
+    events?: string[];
+    webhookId?: string;
 }
 
 export interface IUserSubscription {
