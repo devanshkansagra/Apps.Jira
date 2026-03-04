@@ -185,7 +185,6 @@ export class SDK {
                 };
             }
 
-            // Add deadline (due date) if provided
             if (deadline) {
                 issueData.fields.duedate = deadline;
             }
@@ -219,9 +218,6 @@ export class SDK {
         }
     }
 
-    /**
-     * Update an issue's due date (deadline)
-     */
     public async updateIssueDeadline({
         http,
         token,
@@ -257,12 +253,10 @@ export class SDK {
                 },
             );
 
-            // Jira returns 204 No Content on success
             if (response?.statusCode === 204 || response?.statusCode === 200) {
                 return { success: true };
             }
 
-            // If there's no error data, consider it successful
             if (response?.data && !response?.data?.errorMessages) {
                 return { success: true };
             }
@@ -279,12 +273,6 @@ export class SDK {
             };
         }
     }
-
-    /**
-     * Update an issue's status by transitioning it to a new status
-     * Uses Jira's transitions API
-     * Accepts status name like "To Do", "In Progress", "Done"
-     */
     public async updateStatus({
         http,
         token,
@@ -302,7 +290,6 @@ export class SDK {
                 return { success: false, error: "No cloudId found" };
             }
 
-            // First, get available transitions for this issue
             const transitionsResponse = await http.get(
                 `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${issueKey}/transitions`,
                 {
@@ -315,7 +302,6 @@ export class SDK {
 
             const transitions = transitionsResponse?.data?.transitions || [];
 
-            // Find the transition that matches the status name (case-insensitive)
             const matchedTransition = transitions.find(
                 (t: any) => t.name.toLowerCase() === statusName.toLowerCase(),
             );
@@ -348,12 +334,10 @@ export class SDK {
                 },
             );
 
-            // Jira returns 204 No Content on success
             if (response?.statusCode === 204 || response?.statusCode === 200) {
                 return { success: true };
             }
 
-            // If there's no error data, consider it successful
             if (response?.data && !response?.data?.errorMessages) {
                 return { success: true };
             }
@@ -371,10 +355,6 @@ export class SDK {
         }
     }
 
-    /**
-     * Search for Jira users by query (username, email, or display name)
-     * and return the accountId
-     */
     public async searchJiraUser({
         http,
         token,
@@ -856,7 +836,6 @@ export class SDK {
 
             const expirationDate = Date.now() + 30 * 24 * 60 * 60 * 1000;
 
-            // 2. Correct Schema: Everything goes inside the 'webhooks' array
             const webhookData = {
                 url: webhookUrl,
                 webhooks: [
@@ -946,9 +925,6 @@ export class SDK {
         }
     }
 
-    /**
-     * List all registered webhooks for the Jira instance
-     */
     public async listWebhooks({
         http,
         token,

@@ -82,7 +82,6 @@ export async function SubscribeModal({
         }),
     );
 
-    // Jira webhook events
     const eventOptions = [
         {
             value: "jira:issue_created",
@@ -174,7 +173,6 @@ export async function SubscribeModal({
         },
     ];
 
-    // Project dropdown
     blocks.push({
         type: "input",
         label: {
@@ -195,7 +193,6 @@ export async function SubscribeModal({
         blockId: ElementEnum.JIRA_SUBSCRIBE_PROJECT_BLOCK,
     });
 
-    // Events multi-select
     blocks.push({
         type: "input",
         label: {

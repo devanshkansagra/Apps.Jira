@@ -245,8 +245,6 @@ export class Handler {
                     ? assignee.substring(1)
                     : assignee;
 
-                console.log(username);
-
                 rcUser = await this.read
                     .getUserReader()
                     .getByUsername(username);
@@ -307,23 +305,6 @@ export class Handler {
                 accountId: accountId,
             });
 
-            // if (assignIssue && !username) {
-            //     return await sendNotification(
-            //         this.read,
-            //         this.modify,
-            //         this.sender,
-            //         this.room,
-            //         `Issue is assigned to you`,
-            //     );
-            // } else {
-            //     return await sendNotification(
-            //         this.read,
-            //         this.modify,
-            //         this.sender,
-            //         this.room,
-            //         `Issue is assigned to ${username}`,
-            //     );
-            // }
         } else {
             if (!token) {
                 await sendNotification(
@@ -525,11 +506,6 @@ ${description}
         }
     }
 
-    /**
-     * Set deadline for an issue
-     * Command: /jira set deadline <issue_key> <deadline_value>
-     * deadline_value can be: today, tomorrow, or a date in yyyy-mm-dd format
-     */
     public async setCommands(args: string[]): Promise<void> {
         const authPersistence = new AuthPersistence(this.app);
         const token = await authPersistence.getAccessTokenForUser(
@@ -576,14 +552,11 @@ ${description}
                     deadline = tomorrow.toISOString().split("T")[0];
                     break;
                 default:
-                    // Try to parse as date in dd/mm/yyyy format
                     const dateParts = deadlineValue.split("/");
                     if (dateParts.length === 3) {
-                        // Convert from dd/mm/yyyy to yyyy-mm-dd
                         const day = dateParts[0].padStart(2, "0");
                         const month = dateParts[1].padStart(2, "0");
                         const year = dateParts[2];
-                        // Validate the date
                         const parsedDate = new Date(`${year}-${month}-${day}`);
                         if (!isNaN(parsedDate.getTime())) {
                             deadline = `${year}-${month}-${day}`;
@@ -598,7 +571,6 @@ ${description}
                             return;
                         }
                     } else {
-                        // Try parsing as yyyy-mm-dd directly
                         const directDate = new Date(deadlineValue);
                         if (!isNaN(directDate.getTime())) {
                             deadline = deadlineValue;
@@ -615,7 +587,6 @@ ${description}
                     }
             }
 
-            // Update the issue deadline
             const result = await this.app.sdk.updateIssueDeadline({
                 http: this.http,
                 token: token.token,
@@ -671,8 +642,6 @@ ${description}
                 );
             }
         }
-
-        // Parse the deadline value
     }
     public async subscribe(args: string[]) {
         const subscriptionPersistence = new SubscriptionPersistence(

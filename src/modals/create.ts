@@ -270,7 +270,6 @@ export async function CreateJiraEntityModal({
         },
     });
 
-    // Deadline (optional) - Date Picker
     blocks.push({
         type: "input",
         label: {
