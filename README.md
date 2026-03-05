@@ -32,7 +32,7 @@ A comprehensive Jira integration app for Rocket.Chat that allows users to intera
 |---------|-------------|-------|
 | `/jira login` | Authenticate with Jira | `/jira login` |
 | `/jira create` | Create a new Jira issue (opens modal) | `/jira create` |
-| `/jira create <type> <project> <summary>` | Quick create an issue | `/jira create Task PROJ "Fix login bug"` |
+| `/jira create <type> <project> <summary>` | Quick create an issue | `/jira create Task PROJ Fix login bug` |
 | `/jira my` | View all issues assigned to you | `/jira my` |
 | `/jira search` | Search issues with filters (opens modal) | `/jira search` |
 | `/jira assign <issue_key> <assignee>` | Assign an issue to a user | `/jira assign PROJ-123 @user` or `/jira assign PROJ-123 me` |
