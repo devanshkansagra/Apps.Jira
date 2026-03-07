@@ -6,6 +6,7 @@ import {
 } from "@rocket.chat/apps-engine/definition/accessors";
 import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
 import { IUser } from "@rocket.chat/apps-engine/definition/users";
+import { IMessage } from "@rocket.chat/apps-engine/definition/messages";
 import { JiraApp } from "../../JiraApp";
 import {
     ICommandUtility,
@@ -55,6 +56,7 @@ export class CommandUtility implements ICommandUtility {
         );
 
         const commandMap: Record<string, (args: string[]) => Promise<void>> = {
+            help: () => this.showHelp(),
             login: () => handler.login(),
             create: (args) => handler.create(args),
             my: () => handler.myIssues(),
@@ -65,6 +67,41 @@ export class CommandUtility implements ICommandUtility {
             subscribe: (args) => handler.subscribe(args),
         };
 
-        await commandMap[command](args);
+        if (!command || command === 'help') {
+            await this.showHelp();
+            return;
+        }
+
+        const commandHandler = commandMap[command];
+        if (!commandHandler) {
+            await this.showHelp();
+            return;
+        }
+
+        await commandHandler(args);
+    }
+
+    private async showHelp(): Promise<void> {
+        const helpMessage = `## Jira App
+**Welcome to the Jira App! Here's a list of available commands:**
+\`/jira help\` - Show this help message
+\`/jira login\` -  Authenticate with Jira
+\`/jira create [issue-type] [project-key] [summary]\` -  Create a new Jira issu
+\`/jira my\` -  View your assigned issues 
+\`/jira search [query]\` -  Search for Jira issues 
+\`/jira assign [issue-key] [username]\` - Assign an issue to a user 
+\`/jira share [issue-key]\` - Share an issue in the channel 
+\`/jira set [project-key]\` - Set default project for the channel 
+\`/jira subscribe\` - Subscribe to Jira notifications 
+`;
+
+        await sendNotification(
+            this.read,
+            this.modify,
+            this.sender,
+            this.room,
+            helpMessage,
+            []
+        );
     }
 }
