@@ -65,6 +65,7 @@ export class CommandUtility implements ICommandUtility {
             share: (args) => handler.share(args),
             set: (args) => handler.setCommands(args),
             subscribe: (args) => handler.subscribe(args),
+            cancel: () => handler.cancel(),
         };
 
         if (!command || command === 'help') {

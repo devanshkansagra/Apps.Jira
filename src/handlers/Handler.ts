@@ -508,6 +508,7 @@ ${description}
 
     public async setCommands(args: string[]): Promise<void> {
         const authPersistence = new AuthPersistence(this.app);
+        const subscriptionPersistence = new SubscriptionPersistence(this.persistence, this.read.getPersistenceReader());
         const token = await authPersistence.getAccessTokenForUser(
             this.sender,
             this.read,
@@ -541,6 +542,9 @@ ${description}
 
             let deadline: string;
             const today = new Date();
+
+            const data = await subscriptionPersistence.getUserSubscribedToIssue(issueKey) as IUserSubscription[];
+            const {username} = await this.read.getUserReader().getById(data[0].userId);
 
             switch (deadlineValue) {
                 case "today":
@@ -593,6 +597,19 @@ ${description}
                 issueKey: issueKey,
                 deadline: deadline,
             });
+
+            const deadlineDate = new Date(deadline);
+            const reminderDate = new Date(deadlineDate);
+            reminderDate.setDate(reminderDate.getDate() - 1);
+            reminderDate.setHours(9, 0, 0, 0);
+
+            await this.modify.getScheduler().scheduleOnce({
+                id: `jira-issue-reminder`,
+                when: reminderDate.toISOString(),
+                data: {
+                    issueKey, username
+                }
+            })
 
             if (result.success) {
                 await sendMessage(
@@ -736,6 +753,30 @@ ${description}
                     { triggerId: this.triggerId },
                     this.sender,
                 );
+        }
+    }
+
+    public async cancel(): Promise<void> {
+        try {
+            const scheduler = this.modify.getScheduler();
+            
+            await scheduler.cancelAllJobs();
+
+            await sendNotification(
+                this.read,
+                this.modify,
+                this.sender,
+                this.room,
+                "✅ All scheduled jobs have been cancelled successfully.",
+            );
+        } catch (error) {
+            await sendNotification(
+                this.read,
+                this.modify,
+                this.sender,
+                this.room,
+                `❌ Failed to cancel scheduled jobs: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            );
         }
     }
 

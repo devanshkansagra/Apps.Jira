@@ -7,7 +7,7 @@ import {
 import { JiraApp } from "../../JiraApp";
 import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
 import { SubscriptionPersistence } from "../persistance/subscriptionPersistence";
-import { sendMessage } from "../helpers/message";
+import { sendDM, sendMessage } from "../helpers/message";
 import { IWebhookPayload } from "../interfaces/IWebhook";
 import {
     IChannelSubscription,
@@ -133,34 +133,13 @@ export class EventHandler {
             const userSubscriptions =
                 await this.subscription.getUserSubscribedToIssue(issueKey);
             for (let userSubscription of userSubscriptions as IUserSubscription[]) {
-                if (userSubscription && userSubscription.userId) {
-                    try {
-                        const user = await this.read
-                            .getUserReader()
-                            .getById(userSubscription.userId);
-                        const appUser = await this.read
-                            .getUserReader()
-                            .getAppUser();
-                        if (user && appUser) {
-                            const room = await this.read
-                                .getRoomReader()
-                                .getDirectByUsernames([
-                                    user.username,
-                                    appUser.username,
-                                ]);
-                            if (room) {
-                                await sendMessage(
-                                    this.read,
-                                    this.modify,
-                                    room,
-                                    undefined,
-                                    dmMessage,
-                                );
-                            }
-                        }
-                    } catch (error) {
-                        console.log("Error sending DM to user:", error);
-                    }
+                try {
+                    const user = await this.read
+                        .getUserReader()
+                        .getById(userSubscription.userId);
+                    await sendDM(this.read, this.modify, user, dmMessage);
+                } catch (error) {
+                    console.log("Error sending DM to user:", error);
                 }
             }
         }
