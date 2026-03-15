@@ -13,12 +13,21 @@ import { IAppInfo } from "@rocket.chat/apps-engine/definition/metadata";
 import { JiraCommand } from "./src/commands/JiraCommand";
 import { settings } from "./src/settings/settings";
 import { CallbackEndpoint } from "./src/api/callback";
-import { ApiVisibility, ApiSecurity } from "@rocket.chat/apps-engine/definition/api";
-import { UIKitBlockInteractionContext, IUIKitResponse, UIKitViewSubmitInteractionContext } from "@rocket.chat/apps-engine/definition/uikit";
+import {
+    ApiVisibility,
+    ApiSecurity,
+} from "@rocket.chat/apps-engine/definition/api";
+import {
+    UIKitBlockInteractionContext,
+    IUIKitResponse,
+    UIKitViewSubmitInteractionContext,
+} from "@rocket.chat/apps-engine/definition/uikit";
 import { ExecuteBlockActionHandler } from "./src/handlers/ExecuteBlockActionHandler";
 import { SDK } from "./src/core/sdk";
 import { ExecuteViewSubmitHandler } from "./src/handlers/ExecuteViewSubmitHandler";
 import { WebhookEndpoint } from "./src/api/webhook";
+import { IJobContext } from "@rocket.chat/apps-engine/definition/scheduler";
+import { sendDM } from "./src/helpers/message";
 
 export class JiraApp extends App {
     public sdk: SDK;
@@ -50,6 +59,27 @@ export class JiraApp extends App {
             security: ApiSecurity.UNSECURE,
             endpoints: [new WebhookEndpoint(this)],
         });
+
+        configurationExtend.scheduler.registerProcessors([
+            {
+                id: "jira-issue-reminder",
+                processor: async function (
+                    jobContext: IJobContext,
+                    read: IRead,
+                    modify: IModify,
+                    http: IHttp,
+                    persis: IPersistence,
+                ) {
+
+                    const { username, issueKey } = jobContext;
+
+                    const user = await read.getUserReader().getByUsername(username);
+                    const message = `⏰ *Deadline Reminder*\n\nHey @${username}, the deadline for issue *${issueKey}* is tomorrow. Please make sure to complete it on time!`;
+                    await sendDM(read, modify, user, message);
+
+                },
+            },
+        ]);
 
         this.sdk = new SDK(this.getAccessors().http, this);
     }
@@ -91,5 +121,4 @@ export class JiraApp extends App {
 
         return await handler.execute();
     }
-
 }
