@@ -99,7 +99,3 @@ After deployment, configure the app settings in Rocket.Chat:
 - [App Requests Forum](https://forums.rocket.chat/c/rocket-chat-apps/requests)
 - [App Guides Forum](https://forums.rocket.chat/c/rocket-chat-apps/guides)
 - [#rocketchat-apps on Open.Rocket.Chat](https://open.rocket.chat/channel/rocketchat-apps)
-
-## License
-
-[MIT](LICENSE)
