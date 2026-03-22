@@ -14,7 +14,7 @@ import { JiraApp } from "../../JiraApp";
 import { IUser } from "@rocket.chat/apps-engine/definition/users";
 import { sendNotification } from "../helpers/message";
 import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
-import { AuthPersistence } from "../persistance/authPersistence";
+import { AuthPersistence } from "../persistance/userPersistence";
 import { SDK } from "../core/sdk";
 
 export async function MyIssuesModal({

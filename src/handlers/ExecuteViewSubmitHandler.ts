@@ -14,7 +14,7 @@ import {
 import { JiraApp } from "../../JiraApp";
 import { ElementEnum } from "../enums/ElementEnum";
 import { ModalEnum } from "../enums/ModalEnum";
-import { AuthPersistence } from "../persistance/authPersistence";
+import { AuthPersistence } from "../persistance/userPersistence";
 import { sendMessage, sendNotification } from "../helpers/message";
 import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
 import { SearchResultsModal } from "../modals/searchResults";

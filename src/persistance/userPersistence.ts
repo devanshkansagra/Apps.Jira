@@ -48,13 +48,37 @@ export class AuthPersistence {
         }
     }
 
-    public async deleteAccessTokenForUser(user:IUser, persis: IPersistence): Promise<any> {
+    public async deleteAccessTokenForUser(
+        user: IUser,
+        persis: IPersistence,
+    ): Promise<any> {
         try {
-            const association = new RocketChatAssociationRecord(RocketChatAssociationModel.USER, user.id);
+            const association = new RocketChatAssociationRecord(
+                RocketChatAssociationModel.USER,
+                user.id,
+            );
             await persis.removeByAssociation(association);
-        }
-        catch(error) {
+        } catch (error) {
             console.log(error);
         }
+    }
+
+    public async setUserInfo(
+        userData: object,
+        user: IUser,
+        persis: IPersistence,
+    ) {
+        const associations: RocketChatAssociationRecord[] = [
+            new RocketChatAssociationRecord(
+                RocketChatAssociationModel.MISC,
+                "user-data",
+            ),
+            new RocketChatAssociationRecord(
+                RocketChatAssociationModel.USER,
+                user.id,
+            )
+        ];
+
+        await persis.updateByAssociations(associations, userData, true);
     }
 }

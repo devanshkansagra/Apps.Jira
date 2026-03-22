@@ -9,10 +9,11 @@ import { IUser } from "@rocket.chat/apps-engine/definition/users";
 import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
 import { getCredentials } from "../helpers/getSettings";
 import { sendNotification } from "../helpers/message";
-import { AuthPersistence } from "../persistance/authPersistence";
+import { AuthPersistence } from "../persistance/userPersistence";
 import { read } from "fs";
 import { URLEnum } from "../enums/URLEnum";
 import { getCallbackURL } from "../helpers/getEndpointURLS";
+import { IAuthData } from "@rocket.chat/apps-engine/definition/oauth2/IOAuth2";
 
 export class SDK {
     private readonly http: IHttp;
@@ -76,11 +77,14 @@ export class SDK {
 
             const resource = resourcesResponse.data?.[0];
 
-            const authData = {
-                token: access_token,
-                refreshToken: refresh_token,
-                expiresAt: Date.now() + expires_in * 1000,
+            const tokenData = {
+                userId: user.id,
+                access_token: access_token,
+                refresh_token: refresh_token,
                 scope,
+            };
+            const userData = {
+                userId: user.id,
                 accountId: userResponse.data?.account_id,
                 email: userResponse.data?.email,
                 name: userResponse.data?.name,
@@ -91,10 +95,21 @@ export class SDK {
             };
 
             await this.authPersistence.setAccessTokenForUser(
-                authData,
+                tokenData,
                 user,
                 persis,
             );
+
+            await this.authPersistence.setUserInfo(userData, user, persis);
+
+            await modify.getScheduler().scheduleOnce({
+                id: "jira-refresh-access-token",
+                when: "3600 seconds",
+                data: {
+                    refresh_token: refresh_token,
+                    userId: user.id,
+                },
+            });
 
             const room = await read.getRoomReader().getById("GENERAL");
 
@@ -108,10 +123,70 @@ export class SDK {
                 );
             }
 
-            return authData;
+            return userData;
         } catch (error) {
             console.error("OAuth flow failed:", error);
             throw error;
+        }
+    }
+
+    public async refreshAccessToken(
+        read: IRead,
+        modify: IModify,
+        data: any,
+        persis: IPersistence,
+    ) {
+        const { clientId, clientSecret } = await getCredentials(read);
+
+        const authPersistence = new AuthPersistence(this.app);
+        try {
+            const res = await this.http.post(
+                "https://auth.atlassian.com/oauth/token",
+                {
+                    headers: {
+                        "Content-type": "application/json",
+                    },
+                    content: JSON.stringify({
+                        grant_type: "refresh_token",
+                        client_id: clientId,
+                        client_secret: clientSecret,
+                        refresh_token: data.refresh_token,
+                    }),
+                },
+            );
+
+            const {
+                access_token,
+                expires_in,
+                token_type,
+                refresh_token,
+                scope,
+            } = res.data;
+
+            const tokenData = {
+                userId: data.userId,
+                access_token: access_token,
+                refresh_token: refresh_token,
+                scope,
+            };
+
+            const user = await read.getUserReader().getById(data.userId);
+            await authPersistence.setAccessTokenForUser(
+                tokenData,
+                user,
+                persis,
+            );
+
+            await modify.getScheduler().scheduleOnce({
+                id: "jira-refresh-access-token",
+                when: "3600 seconds",
+                data: {
+                    refresh_token: refresh_token,
+                    userId: user.id,
+                },
+            });
+        } catch (error) {
+            console.log(error);
         }
     }
     public async createJiraIssue({
@@ -821,7 +896,7 @@ export class SDK {
         token,
         webhookUrl,
         events,
-        projectKey
+        projectKey,
     }: {
         http: IHttp;
         token: any;
@@ -830,7 +905,6 @@ export class SDK {
         projectKey: string;
     }): Promise<{ success: boolean; webhookId?: string; error?: string }> {
         try {
-
             const cloudId = token?.cloudId;
             if (!cloudId) return { success: false, error: "No cloudId found" };
 
@@ -840,13 +914,12 @@ export class SDK {
                 url: webhookUrl,
                 webhooks: [
                     {
-                        events:events,
+                        events: events,
                         jqlFilter: `project = ${projectKey}`,
                         expirationDate: expirationDate,
                     },
                 ],
             };
-
 
             const response = await http.post(
                 `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/webhook`,

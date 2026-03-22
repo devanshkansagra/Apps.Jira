@@ -13,7 +13,7 @@ import { CreateJiraEntityModal } from "../modals/create";
 import { MyIssuesModal } from "../modals/myIssues";
 import { SearchJiraModal } from "../modals/search";
 import { AssignIssueModal } from "../modals/assign";
-import { AuthPersistence } from "../persistance/authPersistence";
+import { AuthPersistence } from "../persistance/userPersistence";
 import { sendMessage, sendNotification } from "../helpers/message";
 import { getCloudURL } from "../helpers/getSettings";
 import { URLEnum } from "../enums/URLEnum";
