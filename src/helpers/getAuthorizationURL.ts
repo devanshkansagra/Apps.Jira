@@ -19,7 +19,8 @@ export async function getAuthorizationURL(app: JiraApp, read: IRead, user: IUser
         "write:jira-work",
         "read:jira-user",
         "read:me",
-        "manage:jira-webhook"
+        "manage:jira-webhook",
+        "offline_access",
     ].join(" ");
 
     const encodedScope = encodeURIComponent(scope);

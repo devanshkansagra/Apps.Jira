@@ -60,6 +60,8 @@ export class JiraApp extends App {
             endpoints: [new WebhookEndpoint(this)],
         });
 
+        this.sdk = new SDK(this.getAccessors().http, this);
+
         configurationExtend.scheduler.registerProcessors([
             {
                 id: "jira-issue-reminder",
@@ -70,18 +72,37 @@ export class JiraApp extends App {
                     http: IHttp,
                     persis: IPersistence,
                 ) {
-
                     const { username, issueKey } = jobContext;
 
-                    const user = await read.getUserReader().getByUsername(username);
+                    const user = await read
+                        .getUserReader()
+                        .getByUsername(username);
                     const message = `⏰ *Deadline Reminder*\n\nHey @${username}, the deadline for issue *${issueKey}* is tomorrow. Please make sure to complete it on time!`;
                     await sendDM(read, modify, user, message);
+                },
+            },
+            {
+                id: "jira-refresh-access-token",
+                processor: async (
+                    jobContext: IJobContext,
+                    read: IRead,
+                    modify: IModify,
+                    http: IHttp,
+                    persis: IPersistence,
+                ) => {
+                    const {
+                        userId,
+                        refresh_token,
+                    } = jobContext;
 
+                    const data = {
+                        userId,
+                        refresh_token,
+                    };
+                    await this.sdk.refreshAccessToken(read, modify, data, persis);
                 },
             },
         ]);
-
-        this.sdk = new SDK(this.getAccessors().http, this);
     }
 
     public async executeBlockActionHandler(
