@@ -57,7 +57,7 @@ A comprehensive Jira integration app for Rocket.Chat that allows users to intera
 
 2. **Clone the repository**:
    ```sh
-   git clone https://github.com/<yourusername>/Apps.Jira
+   git clone https://github.com/<yourusername>/JiraApp
    cd Apps.Jira
    ```
 
