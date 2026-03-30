@@ -50,9 +50,9 @@ export async function SearchResultsModal({
 }): Promise<IUIKitSurfaceViewParam> {
     let blocks: LayoutBlock[] = [];
     const authPersistence = new AuthPersistence(app);
-    const token = await authPersistence.getAccessTokenForUser(sender, read);
+    const auth = await authPersistence.getAccessTokenForUser(sender, read);
     
-    if (!token) {
+    if (!auth?.token?.access_token || !auth?.user?.cloudId) {
         await sendNotification(
             read,
             modify,
@@ -63,10 +63,19 @@ export async function SearchResultsModal({
         return {} as IUIKitSurfaceViewParam;
     }
 
+    await authPersistence.touchLastApiCallForUser(sender, read, persis);
+    const token = {
+        token: auth.token.access_token,
+        cloudId: auth.user.cloudId,
+        accountId: auth.user.accountId,
+        siteUrl: auth.user.siteUrl,
+        siteName: auth.user.siteName,
+    };
+
     const sdk = new SDK(http, app);
     const result = await sdk.searchIssues({
         http,
-        token: token.token,
+        token,
         projectKey,
         status,
         issueType,

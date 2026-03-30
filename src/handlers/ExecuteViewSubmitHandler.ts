@@ -38,11 +38,39 @@ export class ExecuteViewSubmitHandler {
         const { view, user, room } = this.context.getInteractionData();
 
         const authPersistence = new AuthPersistence(this.app);
-        const token = await authPersistence.getAccessTokenForUser(
+        const auth = await authPersistence.getAccessTokenForUser(
             user,
             this.read,
         );
         const sdk = this.app.sdk;
+
+        if (!auth?.token?.access_token || !auth?.user?.cloudId) {
+            const general = (await this.read
+                .getRoomReader()
+                .getById("GENERAL")) as IRoom;
+            await sendNotification(
+                this.read,
+                this.modify,
+                user,
+                general,
+                "You are not logged in. Please login to Jira first using `/jira login`.",
+            );
+            return { success: false };
+        }
+
+        await authPersistence.touchLastApiCallForUser(
+            user,
+            this.read,
+            this.persistence,
+        );
+
+        const token = {
+            token: auth.token.access_token,
+            cloudId: auth.user.cloudId,
+            accountId: auth.user.accountId,
+            siteUrl: auth.user.siteUrl,
+            siteName: auth.user.siteName,
+        };
 
         switch (view.id) {
             case ModalEnum.JIRA_CREATE_MODAL: {
@@ -82,7 +110,7 @@ export class ExecuteViewSubmitHandler {
                     ).emails[0];
                     const userSearchResult = await sdk.searchJiraUser({
                         http: this.http,
-                        token: token.token,
+                        token,
                         query: assignedUser.address,
                     });
                     if (
@@ -106,7 +134,7 @@ export class ExecuteViewSubmitHandler {
                 }
                 const res = await sdk.createJiraIssue({
                     http: this.http,
-                    token: token.token,
+                    token,
                     projectKey: project,
                     issueType,
                     summary,
@@ -257,7 +285,7 @@ export class ExecuteViewSubmitHandler {
 
                 const userSearchResult = await sdk.searchJiraUser({
                     http: this.http,
-                    token: token.token,
+                    token,
                     query: userEmail,
                 });
 
@@ -277,7 +305,7 @@ export class ExecuteViewSubmitHandler {
 
                 const assignResult = await sdk.assignIssueToUser({
                     http: this.http,
-                    token: token.token,
+                    token,
                     issueKey,
                     accountId: userSearchResult.accountId,
                 });
@@ -344,7 +372,7 @@ export class ExecuteViewSubmitHandler {
 
                 const commentResult = await sdk.addComment({
                     http: this.http,
-                    token: token.token,
+                    token,
                     issueKey,
                     comment,
                 });
@@ -400,7 +428,7 @@ export class ExecuteViewSubmitHandler {
 
                 const createWebhookResult = await sdk.createWebhook({
                     http: this.http,
-                    token: token.token,
+                    token,
                     webhookUrl,
                     events,
                     projectKey: project,

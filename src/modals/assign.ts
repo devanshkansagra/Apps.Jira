@@ -39,9 +39,9 @@ export async function AssignIssueModal({
 }): Promise<IUIKitSurfaceViewParam> {
     let blocks: LayoutBlock[] = [];
     const authPersistence = new AuthPersistence(app);
-    const token = await authPersistence.getAccessTokenForUser(sender, read);
+    const auth = await authPersistence.getAccessTokenForUser(sender, read);
     
-    if (!token) {
+    if (!auth?.token?.access_token || !auth?.user?.cloudId) {
         await sendNotification(
             read,
             modify,
@@ -52,13 +52,15 @@ export async function AssignIssueModal({
         return {} as IUIKitSurfaceViewParam;
     }
 
+    await authPersistence.touchLastApiCallForUser(sender, read, persis);
+
     const issues = await getUnassignedIssues(
         read,
         modify,
         sender,
         room as IRoom,
         http,
-        token,
+        { cloudId: auth.user.cloudId, token: auth.token.access_token },
     );
 
     if (!issues || issues.length === 0) {
@@ -176,10 +178,10 @@ async function getUnassignedIssues(
     sender: IUser,
     room: IRoom,
     http: IHttp,
-    token: any,
+    token: { cloudId: string; token: string },
 ): Promise<any[]> {
     try {
-        const cloudId = token.token?.cloudId;
+        const cloudId = token.cloudId;
         if (!cloudId) {
             console.log("No cloudId found in token");
             return [];
@@ -191,7 +193,7 @@ async function getUnassignedIssues(
             `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/search/jql`,
             {
                 headers: {
-                    Authorization: `Bearer ${token?.token.token}`,
+                    Authorization: `Bearer ${token.token}`,
                     Accept: "application/json",
                     "Content-Type": "application/json",
                 },

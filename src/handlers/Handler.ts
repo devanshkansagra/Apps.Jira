@@ -37,6 +37,20 @@ export class Handler {
         protected readonly triggerId: string,
     ) {}
 
+    private isLoggedIn(auth: any): boolean {
+        return Boolean(auth?.token?.access_token && auth?.user?.cloudId);
+    }
+
+    private toSdkToken(auth: any) {
+        return {
+            token: auth?.token?.access_token,
+            cloudId: auth?.user?.cloudId,
+            accountId: auth?.user?.accountId,
+            siteUrl: auth?.user?.siteUrl,
+            siteName: auth?.user?.siteName,
+        };
+    }
+
     public async login() {
         await authorize(
             this.app,
@@ -50,12 +64,12 @@ export class Handler {
 
     public async create(args?: string[]): Promise<void> {
         const authPersistence = new AuthPersistence(this.app);
-        const token = await authPersistence.getAccessTokenForUser(
+        const auth = await authPersistence.getAccessTokenForUser(
             this.sender,
             this.read,
         );
 
-        if (!token) {
+        if (!this.isLoggedIn(auth)) {
             await sendNotification(
                 this.read,
                 this.modify,
@@ -66,6 +80,13 @@ export class Handler {
             return;
         }
 
+        await authPersistence.touchLastApiCallForUser(
+            this.sender,
+            this.read,
+            this.persistence,
+        );
+        const token = this.toSdkToken(auth);
+
         if (args && args.length >= 3) {
             const issueType = args[0];
             const projectKey = args[1];
@@ -73,7 +94,7 @@ export class Handler {
 
             const result = await this.app.sdk.createJiraIssue({
                 http: this.http,
-                token: token.token,
+                token,
                 projectKey: projectKey,
                 issueType: issueType,
                 summary: taskSummary,
@@ -122,12 +143,12 @@ export class Handler {
 
     public async myIssues(): Promise<void> {
         const authPersistence = new AuthPersistence(this.app);
-        const token = await authPersistence.getAccessTokenForUser(
+        const auth = await authPersistence.getAccessTokenForUser(
             this.sender,
             this.read,
         );
 
-        if (!token) {
+        if (!this.isLoggedIn(auth)) {
             await sendNotification(
                 this.read,
                 this.modify,
@@ -137,6 +158,14 @@ export class Handler {
             );
             return;
         }
+
+        await authPersistence.touchLastApiCallForUser(
+            this.sender,
+            this.read,
+            this.persistence,
+        );
+
+        const token = this.toSdkToken(auth);
 
         const modal = await MyIssuesModal({
             app: this.app,
@@ -161,12 +190,12 @@ export class Handler {
 
     public async search(args: string[]): Promise<void> {
         const authPersistence = new AuthPersistence(this.app);
-        const token = await authPersistence.getAccessTokenForUser(
+        const auth = await authPersistence.getAccessTokenForUser(
             this.sender,
             this.read,
         );
 
-        if (!token) {
+        if (!this.isLoggedIn(auth)) {
             await sendNotification(
                 this.read,
                 this.modify,
@@ -176,6 +205,14 @@ export class Handler {
             );
             return;
         }
+
+        await authPersistence.touchLastApiCallForUser(
+            this.sender,
+            this.read,
+            this.persistence,
+        );
+
+        const token = this.toSdkToken(auth);
 
         const modal = await SearchJiraModal({
             app: this.app,
@@ -204,17 +241,35 @@ export class Handler {
             this.persistence,
             this.read.getPersistenceReader(),
         );
-        const token = await authPersistence.getAccessTokenForUser(
+        const auth = await authPersistence.getAccessTokenForUser(
             this.sender,
             this.read,
         );
+        if (!this.isLoggedIn(auth)) {
+            await sendNotification(
+                this.read,
+                this.modify,
+                this.sender,
+                this.room,
+                "You are not logged in. Please login to Jira first using /jira login",
+            );
+            return;
+        }
+
+        await authPersistence.touchLastApiCallForUser(
+            this.sender,
+            this.read,
+            this.persistence,
+        );
+        const token = this.toSdkToken(auth);
+
         if (args.length > 1) {
             const issueKey = args[0];
             const assignee = args[1];
 
             const isAssigned = await this.app.sdk.isIssueAssigned({
                 http: this.http,
-                token: token.token,
+                token,
                 issueKey: issueKey,
             });
             if (isAssigned.success === true && isAssigned.assignee !== null) {
@@ -239,7 +294,7 @@ export class Handler {
             let username;
             let rcUser: IUser | null = null;
             if (assignee === "me") {
-                accountId = token.token.accountId;
+                accountId = token.accountId;
             } else {
                 username = assignee.startsWith("@")
                     ? assignee.substring(1)
@@ -271,7 +326,7 @@ export class Handler {
 
                 const userSearchResult = await this.app.sdk.searchJiraUser({
                     http: this.http,
-                    token: token.token,
+                    token,
                     query: userEmail,
                 });
 
@@ -300,23 +355,12 @@ export class Handler {
 
             await this.app.sdk.assignIssueToUser({
                 http: this.http,
-                token: token.token,
+                token,
                 issueKey: issueKey,
                 accountId: accountId,
             });
 
         } else {
-            if (!token) {
-                await sendNotification(
-                    this.read,
-                    this.modify,
-                    this.sender,
-                    this.room,
-                    "You are not logged in. Please login to Jira first using /jira login",
-                );
-                return;
-            }
-
             const modal = await AssignIssueModal({
                 app: this.app,
                 read: this.read,
@@ -343,12 +387,12 @@ export class Handler {
 
     public async share(args: string[]): Promise<void> {
         const authPersistence = new AuthPersistence(this.app);
-        const token = await authPersistence.getAccessTokenForUser(
+        const auth = await authPersistence.getAccessTokenForUser(
             this.sender,
             this.read,
         );
 
-        if (!token) {
+        if (!this.isLoggedIn(auth)) {
             await sendNotification(
                 this.read,
                 this.modify,
@@ -358,6 +402,13 @@ export class Handler {
             );
             return;
         }
+
+        await authPersistence.touchLastApiCallForUser(
+            this.sender,
+            this.read,
+            this.persistence,
+        );
+        const token = this.toSdkToken(auth);
 
         if (args.length < 2) {
             await sendNotification(
@@ -389,7 +440,7 @@ export class Handler {
 
         const issueResult = await this.app.sdk.getIssue({
             http: this.http,
-            token: token.token,
+            token,
             issueKey: issueKey,
         });
 
@@ -509,12 +560,12 @@ ${description}
     public async setCommands(args: string[]): Promise<void> {
         const authPersistence = new AuthPersistence(this.app);
         const subscriptionPersistence = new SubscriptionPersistence(this.persistence, this.read.getPersistenceReader());
-        const token = await authPersistence.getAccessTokenForUser(
+        const auth = await authPersistence.getAccessTokenForUser(
             this.sender,
             this.read,
         );
 
-        if (!token) {
+        if (!this.isLoggedIn(auth)) {
             await sendNotification(
                 this.read,
                 this.modify,
@@ -524,6 +575,13 @@ ${description}
             );
             return;
         }
+
+        await authPersistence.touchLastApiCallForUser(
+            this.sender,
+            this.read,
+            this.persistence,
+        );
+        const token = this.toSdkToken(auth);
 
         if (args.length < 2) {
             await sendNotification(
@@ -593,7 +651,7 @@ ${description}
 
             const result = await this.app.sdk.updateIssueDeadline({
                 http: this.http,
-                token: token.token,
+                token,
                 issueKey: issueKey,
                 deadline: deadline,
             });
@@ -636,7 +694,7 @@ ${description}
 
             const updateStatus = await this.app.sdk.updateStatus({
                 http: this.http,
-                token: token.token,
+                token,
                 issueKey: issueKey,
                 statusName: statusName,
             });
@@ -666,14 +724,14 @@ ${description}
             this.read.getPersistenceReader(),
         );
         const authPersistence = new AuthPersistence(this.app);
-        const token = await authPersistence.getAccessTokenForUser(
+        const auth = await authPersistence.getAccessTokenForUser(
             this.sender,
             this.read,
         );
 
         const webhookUrl = await getWebhookUrl(this.app);
 
-        if (!token) {
+        if (!this.isLoggedIn(auth)) {
             await sendNotification(
                 this.read,
                 this.modify,
@@ -683,6 +741,13 @@ ${description}
             );
             return;
         }
+
+        await authPersistence.touchLastApiCallForUser(
+            this.sender,
+            this.read,
+            this.persistence,
+        );
+        const token = this.toSdkToken(auth);
 
         if (args[0] === "all") {
             const events = [
@@ -699,7 +764,7 @@ ${description}
 
             const webhookResult = await this.app.sdk.createWebhook({
                 http: this.http,
-                token: token.token,
+                token,
                 webhookUrl: webhookUrl,
                 events: events,
                 projectKey: projectKey,
