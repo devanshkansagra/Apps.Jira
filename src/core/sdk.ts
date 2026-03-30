@@ -8,9 +8,8 @@ import { JiraApp } from "../../JiraApp";
 import { IUser } from "@rocket.chat/apps-engine/definition/users";
 import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
 import { getCredentials } from "../helpers/getSettings";
-import { sendNotification } from "../helpers/message";
+import { sendDM, sendNotification } from "../helpers/message";
 import { AuthPersistence } from "../persistance/userPersistence";
-import { read } from "fs";
 import { URLEnum } from "../enums/URLEnum";
 import { getCallbackURL } from "../helpers/getEndpointURLS";
 import { IAuthData } from "@rocket.chat/apps-engine/definition/oauth2/IOAuth2";
@@ -82,6 +81,7 @@ export class SDK {
                 access_token: access_token,
                 refresh_token: refresh_token,
                 scope,
+                lastApiCallAt: Date.now(),
             };
             const userData = {
                 userId: user.id,
@@ -97,10 +97,11 @@ export class SDK {
             await this.authPersistence.setAccessTokenForUser(
                 tokenData,
                 user,
+                read,
                 persis,
             );
 
-            await this.authPersistence.setUserInfo(userData, user, persis);
+            await this.authPersistence.setUserInfo(userData, user, read, persis);
 
             await modify.getScheduler().scheduleOnce({
                 id: "jira-refresh-access-token",
@@ -140,6 +141,33 @@ export class SDK {
 
         const authPersistence = new AuthPersistence(this.app);
         try {
+            const user = await read.getUserReader().getById(data.userId);
+            const stored = user
+                ? await authPersistence.getAccessTokenForUser(user, read)
+                : null;
+            if (!user || !stored?.token) {
+                return;
+            }
+
+            const lastApiCallAt = stored?.token?.lastApiCallAt;
+            const now = Date.now();
+            const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+
+            if (
+                user &&
+                typeof lastApiCallAt === "number" &&
+                now - lastApiCallAt >= sevenDaysMs
+            ) {
+                await authPersistence.deleteAccessTokenForUser(user, persis);
+                await sendDM(
+                    read,
+                    modify,
+                    user,
+                    "You have been logged out of Jira due to inactivity (no Jira usage for 7 days). Please login again using `/jira login` to continue.",
+                );
+                return;
+            }
+
             const res = await this.http.post(
                 "https://auth.atlassian.com/oauth/token",
                 {
@@ -168,23 +196,27 @@ export class SDK {
                 access_token: access_token,
                 refresh_token: refresh_token,
                 scope,
+                lastApiCallAt:
+                    typeof lastApiCallAt === "number" ? lastApiCallAt : now,
             };
 
-            const user = await read.getUserReader().getById(data.userId);
-            await authPersistence.setAccessTokenForUser(
-                tokenData,
-                user,
-                persis,
-            );
+            if (user) {
+                await authPersistence.setAccessTokenForUser(
+                    tokenData,
+                    user,
+                    read,
+                    persis,
+                );
 
-            await modify.getScheduler().scheduleOnce({
-                id: "jira-refresh-access-token",
-                when: "3600 seconds",
-                data: {
-                    refresh_token: refresh_token,
-                    userId: user.id,
-                },
-            });
+                await modify.getScheduler().scheduleOnce({
+                    id: "jira-refresh-access-token",
+                    when: "3300 seconds",
+                    data: {
+                        refresh_token: refresh_token,
+                        userId: user.id,
+                    },
+                });
+            }
         } catch (error) {
             console.log(error);
         }
@@ -925,7 +957,7 @@ export class SDK {
                 `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/webhook`,
                 {
                     headers: {
-                        Authorization: `Bearer ${token.token}`,
+                        Authorization: `Bearer ${token?.token}`,
                         Accept: "application/json",
                         "Content-Type": "application/json",
                     },

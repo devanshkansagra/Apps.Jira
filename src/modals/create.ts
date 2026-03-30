@@ -39,8 +39,8 @@ export async function CreateJiraEntityModal({
 }): Promise<IUIKitSurfaceViewParam> {
     let blocks: LayoutBlock[] = [];
     const authPersistence = new AuthPersistence(app);
-    const token = await authPersistence.getAccessTokenForUser(sender, read);
-    if (!token) {
+    const auth = await authPersistence.getAccessTokenForUser(sender, read);
+    if (!auth?.token?.access_token || !auth?.user?.cloudId) {
         await sendNotification(
             read,
             modify,
@@ -51,13 +51,15 @@ export async function CreateJiraEntityModal({
         return {} as IUIKitSurfaceViewParam;
     }
 
+    await authPersistence.touchLastApiCallForUser(sender, read, persis);
+
     const projects = await getJiraProjects(
         read,
         modify,
         sender,
         room as IRoom,
         http,
-        token,
+        { cloudId: auth.user.cloudId, token: auth.token.access_token },
     );
     const projectOptions = projects.map(
         (project: { key: string; name: string }) => ({
@@ -327,10 +329,10 @@ async function getJiraProjects(
     sender: IUser,
     room: IRoom,
     http: IHttp,
-    token: any,
+    token: { cloudId: string; token: string },
 ): Promise<Array<{ key: string; name: string }>> {
     try {
-        const cloudId = token.token?.cloudId;
+        const cloudId = token.cloudId;
         if (!cloudId) {
             console.log("No cloudId found in token");
             return [];
@@ -340,7 +342,7 @@ async function getJiraProjects(
             `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/project`,
             {
                 headers: {
-                    Authorization: `Bearer ${token?.token.token}`,
+                    Authorization: `Bearer ${token.token}`,
                     Accept: "application/json",
                 },
             },
