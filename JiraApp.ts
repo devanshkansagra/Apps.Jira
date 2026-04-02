@@ -1,5 +1,7 @@
 import {
     IAppAccessors,
+    IAppInstallationContext,
+    IAppUpdateContext,
     IConfigurationExtend,
     IEnvironmentRead,
     IHttp,
@@ -28,11 +30,27 @@ import { ExecuteViewSubmitHandler } from "./src/handlers/ExecuteViewSubmitHandle
 import { WebhookEndpoint } from "./src/api/webhook";
 import { IJobContext } from "@rocket.chat/apps-engine/definition/scheduler";
 import { sendDM } from "./src/helpers/message";
+import { IssuePersistence } from "./src/persistance/issuePersistence";
+import { IJiraIssue } from "./src/interfaces/IJiraIssue";
+import { getCloudURL } from "./src/helpers/getSettings";
 
 export class JiraApp extends App {
     public sdk: SDK;
     constructor(info: IAppInfo, logger: ILogger, accessors: IAppAccessors) {
         super(info, logger, accessors);
+    }
+
+    public async onInstall(
+        context: IAppInstallationContext,
+        read: IRead,
+        http: IHttp,
+        persistence: IPersistence,
+        modify: IModify,
+    ): Promise<void> {
+        await modify.getScheduler().scheduleRecurring({
+            id: "fetch-overdue-issues",
+            interval: "0 9 * * *",
+        });
     }
 
     public async initialize(
@@ -90,16 +108,83 @@ export class JiraApp extends App {
                     http: IHttp,
                     persis: IPersistence,
                 ) => {
-                    const {
-                        userId,
-                        refresh_token,
-                    } = jobContext;
+                    const { userId, refresh_token } = jobContext;
 
                     const data = {
                         userId,
                         refresh_token,
                     };
-                    await this.sdk.refreshAccessToken(read, modify, data, persis);
+                    await this.sdk.refreshAccessToken(
+                        read,
+                        modify,
+                        data,
+                        persis,
+                    );
+                },
+            },
+            {
+                id: "fetch-overdue-issues",
+                processor: async (
+                    jobContext: IJobContext,
+                    read: IRead,
+                    modify: IModify,
+                    http: IHttp,
+                    persis: IPersistence,
+                ) => {
+                    const issuePersistence = new IssuePersistence(
+                        persis,
+                        read.getPersistenceReader(),
+                    );
+                    const issues =
+                        (await issuePersistence.fetchIssueData()) as IJiraIssue[];
+
+                    const now = new Date();
+                    const overDuedIssues = issues.filter(
+                        (issue) =>
+                            now > new Date(issue.deadline as Date) &&
+                            issue.status !== "Done",
+                    );
+
+                    const groupedByUser = overDuedIssues.reduce(
+                        (acc, issue) => {
+                            const userId = issue.assignee?.id;
+
+                            if (!userId) return acc;
+
+                            if (!acc[userId]) {
+                                acc[userId] = [];
+                            }
+
+                            acc[userId].push(issue);
+
+                            return acc;
+                        },
+                        {} as Record<string, IJiraIssue[]>,
+                    );
+
+                    const cloudUrl = await getCloudURL(read);
+                    for (const userId in groupedByUser) {
+                        const issues = groupedByUser[userId];
+                        const user = await read.getUserReader().getById(userId);
+                        const issueList = issues
+                            .map(
+                                (issue) =>
+                                    `• ${issue.issueId} (${issue.priority})
+                                    🔗 ${cloudUrl}/browse/${issue.issueId}`,
+                            )
+                            .join("\n");
+
+                        const message = `
+                        ⚠️ Overdue Issues Reminder
+
+                        Hi ${user.name},
+                        You have ${issues.length} overdue issue(s):
+
+                        ${issueList}
+                        `;
+
+                        await sendDM(read, modify, user, message);
+                    }
                 },
             },
         ]);

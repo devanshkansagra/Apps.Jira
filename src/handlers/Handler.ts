@@ -24,6 +24,8 @@ import {
 import { SubscriptionPersistence } from "../persistance/subscriptionPersistence";
 import { getWebhookUrl } from "../helpers/getEndpointURLS";
 import { SubscribeModal } from "../modals/subscribeModal";
+import { IssuePersistence } from "../persistance/issuePersistence";
+import { IJiraIssue } from "../interfaces/IJiraIssue";
 
 export class Handler {
     constructor(
@@ -666,7 +668,7 @@ ${description}
                 when: reminderDate.toISOString(),
                 data: {
                     issueKey, username
-                }
+                },
             })
 
             if (result.success) {
