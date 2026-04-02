@@ -19,6 +19,8 @@ import { sendMessage, sendNotification } from "../helpers/message";
 import { IRoom } from "@rocket.chat/apps-engine/definition/rooms";
 import { SearchResultsModal } from "../modals/searchResults";
 import { getWebhookUrl } from "../helpers/getEndpointURLS";
+import { IssuePersistence } from "../persistance/issuePersistence";
+import { IJiraIssue } from "../interfaces/IJiraIssue";
 
 export class ExecuteViewSubmitHandler {
     private context: UIKitViewSubmitInteractionContext;
@@ -38,6 +40,7 @@ export class ExecuteViewSubmitHandler {
         const { view, user, room } = this.context.getInteractionData();
 
         const authPersistence = new AuthPersistence(this.app);
+        const issuePersistence = new IssuePersistence(this.persistence, this.read.getPersistenceReader());
         const auth = await authPersistence.getAccessTokenForUser(
             user,
             this.read,
@@ -104,14 +107,14 @@ export class ExecuteViewSubmitHandler {
                     ];
 
                 let jiraAccountId: string = "";
+                const assignedUser = (
+                    await this.read.getUserReader().getByUsername(assignee)
+                )
                 if (assignee) {
-                    const assignedUser = (
-                        await this.read.getUserReader().getByUsername(assignee)
-                    ).emails[0];
                     const userSearchResult = await sdk.searchJiraUser({
                         http: this.http,
                         token,
-                        query: assignedUser.address,
+                        query: assignedUser.emails[0].address,
                     });
                     if (
                         userSearchResult.success &&
@@ -150,6 +153,17 @@ export class ExecuteViewSubmitHandler {
 
                 if (res.success && res.issueKey) {
                     let message = `✅ Jira issue *${res.issueKey}* created successfully!\n\n📋 Summary: ${summary}\n🏷️ Type: ${issueType}\n📁 Project: ${project}`;
+                    const issueData: IJiraIssue = {
+                        issueId: res.issueKey,
+                        type: issueType,
+                        projectKey: project,
+                        assignee: assignedUser,
+                        status: "To Do",
+                        deadline: deadline,
+                        priority: priority,
+                    }
+
+                    await issuePersistence.upsertIssueData(issueData)
                     if (deadline) {
                         message += `\n⏰ Deadline: ${deadline}`;
                     }
